@@ -9,214 +9,370 @@
     <meta name="theme-color" content="#000000">
     <title>Gemini Reader</title>
     
+    <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Puter.js for Unlimited TTS -->
     <script src="https://js.puter.com/v2/"></script>
 
     <style>
-        :root { --safe-bottom: env(safe-area-inset-bottom, 20px); }
-        body { background-color: #000000; color: #ffffff; font-family: 'Inter', sans-serif; overflow-x: hidden; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
-        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .floating-player { background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); border-radius: 24px; margin-bottom: var(--safe-bottom); -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, rgba(0,0,0,1) 100%); mask-image: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, rgba(0,0,0,1) 100%); }
-        .glass-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(10px); transition: all 0.2s ease; user-select: none; }
-        .glass-card:active { transform: scale(0.98); background: rgba(255, 255, 255, 0.08); }
-        .glass-card.active { background: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.4); box-shadow: 0 0 15px rgba(255, 255, 255, 0.1); }
-        .view-section { display: none; opacity: 0; transition: opacity 0.3s ease-in-out; height: 100%; flex-direction: column; }
-        .view-section.active { display: flex; opacity: 1; }
-        #reader-display { line-height: 1.8; font-size: 1.125rem; color: rgba(255, 255, 255, 0.7); padding-bottom: 160px; }
+        :root {
+            --safe-bottom: env(safe-area-inset-bottom, 20px);
+            --safe-top: env(safe-area-inset-top, 20px);
+        }
+
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none;
+        }
+
+        /* Glassmorphism Architecture */
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Floating Player Specifics */
+        .floating-player {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            border-radius: 24px;
+            margin-bottom: var(--safe-bottom);
+        }
+
+        /* Cards */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .glass-card:active {
+            transform: scale(0.98);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .glass-card.active {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+
+        /* Library Item */
+        .lib-item {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background 0.2s;
+        }
+        .lib-item:last-child { border-bottom: none; }
+        .lib-item:hover { background: rgba(255, 255, 255, 0.05); }
+
+        /* View Transitions */
+        .view-section {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            height: 100%;
+            flex-direction: column;
+        }
+        .view-section.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        /* Reader Mode Styles */
+        #reader-display {
+            line-height: 1.8;
+            font-size: 1.15rem;
+            color: rgba(255, 255, 255, 0.75);
+            padding-bottom: calc(160px + var(--safe-bottom));
+        }
+        
         #reader-display h1 { font-size: 1.8em; font-weight: 700; color: white; margin-top: 1.5em; margin-bottom: 0.5em; }
         #reader-display h2 { font-size: 1.5em; font-weight: 600; color: white; margin-top: 1.2em; margin-bottom: 0.5em; }
-        #reader-display h3 { font-size: 1.25em; font-weight: 600; color: #e2e8f0; margin-top: 1em; margin-bottom: 0.5em; }
-        #reader-display p { margin-bottom: 1.2em; }
-        .chunk { transition: background-color 0.2s ease, color 0.2s ease; border-radius: 4px; cursor: pointer; padding: 4px 2px; }
-        .chunk:hover { color: white; background: rgba(255, 255, 255, 0.1); }
-        .chunk.active { color: white; background: rgba(255, 255, 255, 0.15); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15); border-radius: 4px; }
-        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; padding: 10px 0; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #ffffff; cursor: pointer; margin-top: -8px; box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
-        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: rgba(255,255,255,0.2); border-radius: 2px; }
-        .v-bar { width: 4px; background: #ffffff; border-radius: 2px; transition: height 0.1s ease; min-height: 4px; }
+        #reader-display p { margin-bottom: 1.5em; }
+        
+        /* Highlight active paragraph/chunk */
+        .chunk {
+            transition: color 0.3s ease, background 0.3s ease;
+            border-radius: 6px;
+            cursor: pointer;
+            padding: 4px 6px;
+            margin: -4px -6px; /* Compensate padding to keep layout flow */
+            display: inline-block; /* Better hit testing */
+        }
+        
+        .chunk:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .chunk.active {
+            color: white;
+            background: rgba(96, 165, 250, 0.2); /* Subtle Blue */
+            box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.3);
+        }
+
+        /* Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+            padding: 10px 0;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+        }
+
+        /* Visualizer */
+        .v-bar {
+            width: 4px;
+            background: #ffffff;
+            border-radius: 2px;
+            transition: height 0.1s ease;
+            min-height: 4px;
+        }
+
+        /* Utility */
         #toaster { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: translateY(-150%); top: 10px; }
-        #toaster.show { transform: translateY(20px); }
+        #toaster.show { transform: translateY(var(--safe-top)); }
+
         #sidebar { transition: transform 0.3s ease-in-out; padding-bottom: var(--safe-bottom); }
+        
         .loader { border: 2px solid rgba(255,255,255,0.2); border-left-color: #fff; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
         .engine-badge { padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; display: inline-block; letter-spacing: 0.5px; }
         .badge-gemini { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
         .badge-puter { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.5); }
         .badge-system { background: rgba(255, 255, 255, 0.1); color: #9ca3af; border: 1px solid rgba(255, 255, 255, 0.2); }
-        @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); } }
-        #btn-install.visible { display: flex; animation: pulse-ring 2s infinite; }
+        
+        /* Nav Button Styles */
+        .nav-btn {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .nav-btn-active {
+            background: #ffffff;
+            color: #000000;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(255,255,255,0.1);
+        }
+        .nav-btn-inactive {
+            color: rgba(255, 255, 255, 0.6);
+            background: transparent;
+        }
+        .nav-btn-inactive:hover { color: #ffffff; }
     </style>
 </head>
 <body class="h-screen flex flex-col relative overflow-hidden">
 
+    <!-- Toaster -->
     <div id="toaster" class="fixed left-0 right-0 z-[60] flex justify-center pointer-events-none">
         <div id="toaster-msg" class="glass px-6 py-3 rounded-full text-sm font-medium shadow-2xl flex items-center gap-2 bg-black/90 backdrop-blur-md border-white/20"></div>
     </div>
 
+    <!-- Header -->
     <header class="glass sticky top-0 z-30 h-16 px-4 flex items-center justify-between border-b border-white/10 shrink-0">
         <div class="flex items-center gap-4">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2" onclick="switchView('reader')">
                 <i data-lucide="waves" class="text-white w-6 h-6"></i>
                 <span class="font-semibold tracking-wide hidden md:block text-white">Gemini<span class="text-gray-400">Reader</span></span>
             </div>
+            
             <nav class="flex bg-white/10 rounded-lg p-1 gap-1">
-                <button onclick="switchView('reader')" id="nav-reader" class="px-3 py-1.5 rounded text-xs font-medium bg-white text-black transition-all active:scale-95 shadow-sm">Reader</button>
-                <button onclick="switchView('voices')" id="nav-voices" class="px-3 py-1.5 rounded text-xs font-medium text-white/70 hover:text-white transition-all active:scale-95">Voices</button>
+                <button onclick="switchView('reader')" id="nav-reader" class="nav-btn nav-btn-active">Reader</button>
+                <button onclick="switchView('library')" id="nav-library" class="nav-btn nav-btn-inactive">Library</button>
+                <button onclick="switchView('voices')" id="nav-voices" class="nav-btn nav-btn-inactive">Voices</button>
             </nav>
         </div>
+        
         <div class="flex items-center gap-3">
-            <button id="menu-toggle" class="md:hidden p-2 rounded active:bg-white/10"><i data-lucide="menu" class="w-6 h-6 text-white"></i></button>
+            <button id="menu-toggle" class="md:hidden p-2 rounded active:bg-white/10">
+                <i data-lucide="menu" class="w-6 h-6 text-white"></i>
+            </button>
         </div>
     </header>
 
+    <!-- Main Layout -->
     <main class="flex-1 flex overflow-hidden relative">
-        <div class="flex-1 flex flex-col relative h-full overflow-hidden">
-            
-            <div id="view-reader" class="view-section active flex-1 overflow-hidden relative">
-                <div class="p-4 flex gap-2 border-b border-white/5 shrink-0">
-                    <div class="flex-1 relative">
-                        <i data-lucide="link" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
-                        <input type="text" id="url-input" placeholder="Paste article URL..." class="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-white/50 placeholder-white/30">
-                    </div>
-                    <button id="scrape-btn" class="glass px-4 rounded-lg hover:bg-white/10 transition-colors flex items-center justify-center min-w-[40px] active:bg-white/20"><i data-lucide="download-cloud" class="w-4 h-4 text-white"></i></button>
-                    <button id="edit-toggle-btn" class="glass px-4 rounded-lg hover:bg-white/10 transition-colors flex items-center justify-center min-w-[40px] hidden active:bg-white/20"><i data-lucide="edit-2" class="w-4 h-4 text-white"></i></button>
+        
+        <!-- VIEW 1: READER -->
+        <div id="view-reader" class="view-section active relative">
+            <!-- Toolbar -->
+            <div class="p-4 flex gap-2 border-b border-white/5 shrink-0">
+                <div class="flex-1 relative">
+                    <i data-lucide="link" class="absolute left-3 top-2.5 w-4 h-4 text-gray-500"></i>
+                    <input type="text" id="url-input" placeholder="Paste article URL..." 
+                        class="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-white/50 placeholder-white/30">
                 </div>
-                <textarea id="main-text" class="flex-1 w-full bg-transparent p-6 resize-none focus:outline-none text-lg leading-relaxed text-body font-light placeholder-white/10" placeholder="Paste text here or import from URL..."></textarea>
-                <div id="reader-display" class="hidden flex-1 w-full bg-transparent p-6 overflow-y-auto text-body font-light pb-40"></div>
-            </div>
-
-            <div id="view-voices" class="view-section p-6 overflow-y-auto pb-40">
-                <div class="max-w-4xl mx-auto w-full">
-                    <div class="glass p-4 rounded-xl border border-white/10 mb-6">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="font-semibold text-white flex items-center gap-2"><i data-lucide="user" class="w-4 h-4"></i> Puter Account</h3>
-                            <div class="flex flex-col items-end"><span id="puter-status" class="text-[10px] uppercase font-bold tracking-wider text-white/50">Checking...</span><span id="env-status" class="text-[9px] text-white/30 mt-0.5">Detecting Env...</span></div>
-                        </div>
-                        <p class="text-xs text-white/60 mb-3">Login to remove guest limits.</p>
-                        <div id="auth-controls">
-                            <button id="btn-puter-login" class="w-full bg-white text-black py-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 active:scale-98 hover:bg-gray-200">Connect Puter Account</button>
-                        </div>
-                    </div>
-                    <div class="glass p-4 rounded-xl border border-white/10 mb-6 flex justify-between items-center">
-                        <div><h3 class="font-semibold text-white">Engine</h3><p class="text-xs text-meta">Puter is unlimited.</p></div>
-                        <div class="flex bg-black/40 p-1 rounded-lg">
-                            <button id="engine-gemini" class="px-4 py-2 rounded-md text-xs font-medium text-white/50 hover:text-white transition-all active:scale-95">Gemini</button>
-                            <button id="engine-puter" class="px-4 py-2 rounded-md text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/50 transition-all active:scale-95">Puter.js</button>
-                        </div>
-                    </div>
-                    <h2 class="text-xl font-semibold mb-4 text-white">Voice Intelligence</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="voice-grid"></div>
-                    <div id="system-voice-controls" class="mt-8 p-4 glass rounded-xl border border-white/10">
-                        <h3 class="text-sm font-semibold text-white mb-2 flex items-center gap-2"><i data-lucide="volume-2" class="w-4 h-4"></i> Offline System Voice</h3>
-                        <p class="text-xs text-white/50 mb-4">Fallback voice if API limits are hit.</p>
-                        <select id="system-voice-select" class="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-sm text-white focus:outline-none focus:border-white"></select>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="fixed bottom-4 left-4 right-4 z-20 controls-overlay">
-                <div class="floating-player p-4 max-w-2xl mx-auto">
-                    <div class="flex justify-between items-center h-6 mb-3">
-                        <div id="visualizer" class="flex items-end gap-1 h-full w-24 opacity-80"></div>
-                        <div class="text-right">
-                            <div class="flex items-center gap-2 justify-end">
-                                <span id="engine-badge" class="engine-badge badge-puter">PUTER AI</span>
-                                <div id="status-text" class="text-[10px] font-mono text-white/70 tracking-widest">READY</div>
-                            </div>
-                            <div id="chunk-info" class="text-xs text-white font-medium">0 / 0</div>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-4">
-                        <div class="flex items-center gap-2">
-                            <button id="prev-btn" class="p-2 text-white/70 hover:text-white transition active:scale-95"><i data-lucide="skip-back" class="w-6 h-6"></i></button>
-                            <button id="play-btn" class="w-14 h-14 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition shadow-lg shadow-white/20">
-                                <i data-lucide="play" class="w-6 h-6 fill-current ml-1" id="play-icon"></i>
-                                <div id="play-loader" class="loader border-gray-800 border-l-transparent hidden w-6 h-6"></div>
-                            </button>
-                            <button id="next-btn" class="p-2 text-white/70 hover:text-white transition active:scale-95"><i data-lucide="skip-forward" class="w-6 h-6"></i></button>
-                        </div>
-                        <div class="flex-1 mx-2 relative h-2 bg-white/10 rounded-full overflow-hidden cursor-pointer group">
-                            <div id="progress-bar" class="absolute top-0 left-0 h-full bg-white w-0 transition-all duration-300"></div>
-                        </div>
-                         <div class="flex items-center gap-2 min-w-[60px] justify-end">
-                            <i data-lucide="zap" class="w-4 h-4 text-white"></i>
-                            <span id="mini-speed-val" class="text-sm font-mono font-bold">1.0x</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <aside id="sidebar" class="glass w-80 fixed md:static inset-y-0 right-0 transform translate-x-full md:translate-x-0 z-50 border-l border-white/10 flex flex-col bg-black/90 md:bg-transparent backdrop-blur-xl md:backdrop-filter-none h-full shadow-2xl">
-            <div class="p-4 border-b border-white/10 flex justify-between items-center mt-safe">
-                <h2 class="text-sm font-semibold uppercase tracking-wider text-white/50">Control Center</h2>
-                <button id="close-sidebar" class="md:hidden text-white p-2"><i data-lucide="x" class="w-6 h-6"></i></button>
-            </div>
-            <!-- Install Button Area -->
-            <div id="install-area" class="p-4 hidden border-b border-white/10 bg-white/5">
-                <button id="btn-install" class="w-full bg-white text-black py-3 rounded-lg text-sm font-bold shadow-lg active:scale-95 transition flex items-center justify-center gap-2">
-                    <i data-lucide="download" class="w-4 h-4"></i> Install App
+                <button id="scrape-btn" class="glass px-4 rounded-lg hover:bg-white/10 transition-colors flex items-center justify-center min-w-[40px] active:bg-white/20" title="Import">
+                    <i data-lucide="download-cloud" class="w-4 h-4 text-white"></i>
+                </button>
+                <button id="edit-toggle-btn" class="glass px-4 rounded-lg hover:bg-white/10 transition-colors flex items-center justify-center min-w-[40px] hidden active:bg-white/20" title="Edit">
+                    <i data-lucide="edit-2" class="w-4 h-4 text-white"></i>
                 </button>
             </div>
-            <div class="p-6 space-y-8 overflow-y-auto flex-1 pb-40">
-                <div class="space-y-4">
-                    <div class="flex justify-between items-baseline"><span class="text-xs font-semibold uppercase text-white/50">Playback Speed</span><span id="speed-val" class="text-xl font-light text-white">1.0x</span></div>
-                    <input type="range" id="speed-slider" min="0.5" max="4.0" step="0.1" value="1.0">
-                    <div class="mt-4 pt-4 border-t border-white/5"><div class="flex justify-between text-xs text-white/50 mb-2"><span>Base Pitch Shift</span><span id="pitch-val">0</span></div><input type="range" id="pitch-slider" min="-600" max="600" step="50" value="0"></div>
-                </div>
-                <div class="h-px bg-white/10 w-full"></div>
-                <div class="space-y-3">
-                    <h3 class="text-xs font-semibold uppercase text-white/50 mb-2">AI Assistant</h3>
-                    <button id="btn-summarize" class="w-full glass py-3 rounded-lg text-sm hover:bg-white/10 text-left px-4 flex items-center gap-3 transition active:scale-98 text-white"><i data-lucide="file-text" class="w-4 h-4 text-white/70"></i> Summarize</button>
-                    <button id="btn-simplify" class="w-full glass py-3 rounded-lg text-sm hover:bg-white/10 text-left px-4 flex items-center gap-3 transition active:scale-98 text-white"><i data-lucide="baby" class="w-4 h-4 text-white/70"></i> Simplify Text</button>
-                    <button id="btn-quiz" class="w-full glass py-3 rounded-lg text-sm hover:bg-white/10 text-left px-4 flex items-center gap-3 transition active:scale-98 text-white"><i data-lucide="graduation-cap" class="w-4 h-4 text-white/70"></i> Generate Quiz</button>
-                </div>
-                <div class="md:hidden pt-4 border-t border-white/10">
-                    <input type="password" id="mobile-api-key" placeholder="Gemini API Key" class="w-full bg-white/5 border border-white/10 rounded px-3 py-3 text-xs text-white focus:border-white outline-none">
+
+            <!-- Text Areas -->
+            <textarea id="main-text" 
+                class="flex-1 w-full bg-transparent p-6 resize-none focus:outline-none text-lg leading-relaxed text-body font-light placeholder-white/10"
+                placeholder="Paste text here or import from URL..."></textarea>
+            
+            <div id="reader-display" class="hidden flex-1 w-full bg-transparent p-6 overflow-y-auto text-body font-light">
+                <!-- Content injected via JS -->
+            </div>
+        </div>
+
+        <!-- VIEW 2: LIBRARY -->
+        <div id="view-library" class="view-section p-6 overflow-y-auto pb-40">
+            <div class="max-w-4xl mx-auto w-full">
+                <h2 class="text-xl font-semibold mb-4 text-white flex items-center gap-2">
+                    <i data-lucide="library" class="w-5 h-5 text-blue-400"></i> My Library
+                </h2>
+                <div id="library-list" class="glass rounded-xl border border-white/10 overflow-hidden">
+                    <!-- Items injected via JS -->
+                    <div class="p-8 text-center text-white/30 text-sm italic">No articles saved yet. Import or paste text to save.</div>
                 </div>
             </div>
-        </aside>
-        <div id="sidebar-overlay" class="fixed inset-0 bg-black/80 z-40 hidden md:hidden glass border-0"></div>
+        </div>
+
+        <!-- VIEW 3: VOICE LAB -->
+        <div id="view-voices" class="view-section p-6 overflow-y-auto pb-40">
+            <div class="max-w-4xl mx-auto w-full">
+                
+                <!-- Account Section -->
+                <div class="glass p-4 rounded-xl border border-white/10 mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-semibold text-white flex items-center gap-2">
+                            <i data-lucide="user" class="w-4 h-4"></i> Puter Account
+                        </h3>
+                        <span id="puter-status" class="text-[10px] uppercase font-bold tracking-wider text-white/50">Checking...</span>
+                    </div>
+                    <div id="auth-controls">
+                        <button id="btn-puter-login" class="w-full bg-white text-black py-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 active:scale-98 hover:bg-gray-200">
+                            Connect Puter Account
+                        </button>
+                    </div>
+                </div>
+
+                <div class="glass p-4 rounded-xl border border-white/10 mb-6 flex justify-between items-center">
+                    <div>
+                        <h3 class="font-semibold text-white">Engine</h3>
+                        <p class="text-xs text-meta">Puter (Paragraphs) vs Gemini (Sentences)</p>
+                    </div>
+                    <div class="flex bg-black/40 p-1 rounded-lg">
+                        <button id="engine-gemini" class="px-4 py-2 rounded-md text-xs font-medium text-white/50 hover:text-white transition-all active:scale-95">Gemini</button>
+                        <button id="engine-puter" class="px-4 py-2 rounded-md text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/50 transition-all active:scale-95">Puter.js</button>
+                    </div>
+                </div>
+
+                <h2 class="text-xl font-semibold mb-4 text-white">Neural Voices</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="voice-grid">
+                    <!-- Cards -->
+                </div>
+
+                <div id="system-voice-controls" class="mt-8 p-4 glass rounded-xl border border-white/10">
+                    <h3 class="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                        <i data-lucide="volume-2" class="w-4 h-4"></i>
+                        Offline System Voice
+                    </h3>
+                    <p class="text-xs text-white/50 mb-4">Fallback voice if API limits are hit.</p>
+                    <select id="system-voice-select" class="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-sm text-white focus:outline-none focus:border-white"></select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- FLOATING PLAYER -->
+        <div class="fixed bottom-4 left-4 right-4 z-50 controls-overlay">
+            <div class="floating-player p-4 max-w-2xl mx-auto">
+                <div class="flex justify-between items-center h-6 mb-3">
+                    <div id="visualizer" class="flex items-end gap-1 h-full w-24 opacity-80"></div>
+                    <div class="text-right">
+                        <div class="flex items-center gap-2 justify-end">
+                            <span id="engine-badge" class="engine-badge badge-puter">PUTER AI</span>
+                            <div id="status-text" class="text-[10px] font-mono text-white/70 tracking-widest">READY</div>
+                        </div>
+                        <div id="chunk-info" class="text-xs text-white font-medium">0 / 0</div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-4 md:gap-6">
+                    <div class="flex items-center gap-2 md:gap-4">
+                        <button id="prev-btn" class="p-2 text-white/70 hover:text-white transition active:scale-95"><i data-lucide="skip-back" class="w-6 h-6"></i></button>
+                        <button id="play-btn" class="w-14 h-14 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition shadow-lg shadow-white/20">
+                            <i data-lucide="play" class="w-6 h-6 fill-current ml-1" id="play-icon"></i>
+                            <div id="play-loader" class="loader border-gray-800 border-l-transparent hidden w-6 h-6"></div>
+                        </button>
+                        <button id="next-btn" class="p-2 text-white/70 hover:text-white transition active:scale-95"><i data-lucide="skip-forward" class="w-6 h-6"></i></button>
+                    </div>
+                    <div class="flex-1 mx-2 relative h-2 bg-white/10 rounded-full overflow-hidden cursor-pointer group">
+                        <div id="progress-bar" class="absolute top-0 left-0 h-full bg-white w-0 transition-all duration-300"></div>
+                    </div>
+                     <div class="flex items-center gap-2 min-w-[60px] justify-end">
+                        <i data-lucide="zap" class="w-4 h-4 text-white"></i>
+                        <span id="mini-speed-val" class="text-sm font-mono font-bold">1.0x</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 
-    <div id="quiz-modal" class="fixed inset-0 z-[70] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-        <div class="glass w-full max-w-lg rounded-2xl overflow-hidden flex flex-col max-h-[80vh] border-white/20">
-            <div class="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
-                <h3 class="font-semibold text-white">Interactive Quiz</h3>
-                <button id="close-quiz" class="p-1 hover:bg-white/10 rounded"><i data-lucide="x" class="w-5 h-5 text-white"></i></button>
-            </div>
-            <div id="quiz-content" class="p-6 overflow-y-auto space-y-6"></div>
+    <!-- Sidebar -->
+    <aside id="sidebar" class="glass w-80 fixed md:static inset-y-0 right-0 transform translate-x-full md:translate-x-0 z-[70] border-l border-white/10 flex flex-col bg-black/90 md:bg-transparent backdrop-blur-xl md:backdrop-filter-none h-full shadow-2xl">
+        <div class="p-4 border-b border-white/10 flex justify-between items-center mt-safe">
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-white/50">Control Center</h2>
+            <button id="close-sidebar" class="md:hidden text-white p-2"><i data-lucide="x" class="w-6 h-6"></i></button>
         </div>
-    </div>
-
-    <!-- PWA Manifest & Service Worker -->
-    <script>
-        const manifest = {
-            "name": "Gemini Reader",
-            "short_name": "Reader",
-            "start_url": ".",
-            "display": "standalone",
-            "background_color": "#000000",
-            "theme_color": "#000000",
-            "orientation": "portrait",
-            "icons": [
-                { "src": "https://cdn.lucide.dev/icon-192.png", "sizes": "192x192", "type": "image/png" },
-                { "src": "https://cdn.lucide.dev/icon-512.png", "sizes": "512x512", "type": "image/png" }
-            ]
-        };
-        const manifestURL = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type: 'application/json'}));
-        const link = document.createElement('link'); link.rel = 'manifest'; link.href = manifestURL; document.head.appendChild(link);
-
-        if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {
-            navigator.serviceWorker.register(URL.createObjectURL(new Blob([`self.addEventListener('install', e => self.skipWaiting()); self.addEventListener('activate', e => e.waitUntil(self.clients.claim()); self.addEventListener('fetch', e => {});`], {type: 'application/javascript'})));
-        }
-    </script>
+        <div class="p-6 space-y-8 overflow-y-auto flex-1 pb-40">
+            <div class="space-y-4">
+                <div class="flex justify-between items-baseline"><span class="text-xs font-semibold uppercase text-white/50">Playback Speed</span><span id="speed-val" class="text-xl font-light text-white">1.0x</span></div>
+                <input type="range" id="speed-slider" min="0.5" max="4.0" step="0.1" value="1.0">
+                <div class="mt-4 pt-4 border-t border-white/5"><div class="flex justify-between text-xs text-white/50 mb-2"><span>Base Pitch Shift</span><span id="pitch-val">0</span></div><input type="range" id="pitch-slider" min="-600" max="600" step="50" value="0"></div>
+            </div>
+            <div class="h-px bg-white/10 w-full"></div>
+            <div class="space-y-3">
+                <h3 class="text-xs font-semibold uppercase text-white/50 mb-2">AI Assistant</h3>
+                <button id="btn-summarize" class="w-full glass py-3 rounded-lg text-sm hover:bg-white/10 text-left px-4 flex items-center gap-3 transition active:scale-98 text-white"><i data-lucide="file-text" class="w-4 h-4 text-white/70"></i> Summarize</button>
+                <button id="btn-simplify" class="w-full glass py-3 rounded-lg text-sm hover:bg-white/10 text-left px-4 flex items-center gap-3 transition active:scale-98 text-white"><i data-lucide="baby" class="w-4 h-4 text-white/70"></i> Simplify Text</button>
+            </div>
+            <div class="md:hidden pt-4 border-t border-white/10">
+                <input type="password" id="mobile-api-key" placeholder="Gemini API Key" class="w-full bg-white/5 border border-white/10 rounded px-3 py-3 text-xs text-white focus:border-white outline-none">
+            </div>
+        </div>
+    </aside>
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/80 z-[65] hidden md:hidden glass border-0"></div>
 
     <script>
+        /* CONFIG */
         const VOICES = [
             { name: "Joey", label: "Joey (Male)", desc: "Deep American voice.", tone: "Deep", provider: "puter" },
             { name: "Matthew", label: "Matthew (Male)", desc: "Very Deep, authoritative.", tone: "Deep", provider: "puter" },
@@ -226,11 +382,12 @@
             { name: "Fenrir", label: "Fenrir (Male)", desc: "Deep (Gemini)", tone: "Deep", provider: "gemini" }
         ];
 
+        /* STATE */
         const state = {
             apiKey: localStorage.getItem("gemini_key") || "", isPlaying: false, textChunks: [], currentChunkIndex: 0, playbackId: 0, 
             audioCache: {}, fetchQueue: [], settings: { speed: 1.0, pitch: 0, voice: "Joey", preferredProvider: "puter", systemVoiceName: localStorage.getItem("system_voice_name") || "" },
-            currentAudio: null, view: 'reader', fallbackMode: false, systemVoices: [], synth: window.speechSynthesis || null, currentUtterance: null,
-            visualizerInterval: null, puterUser: null, deferredPrompt: null
+            currentAudio: null, view: 'reader', fallbackMode: false, systemVoices: [], synth: window.speechSynthesis || null, visualizerInterval: null, puterUser: null,
+            library: JSON.parse(localStorage.getItem('gemini_library') || '[]')
         };
 
         const els = {
@@ -238,164 +395,320 @@
             readerDisplay: document.getElementById('reader-display'), urlInput: document.getElementById('url-input'), playBtn: document.getElementById('play-btn'),
             playIcon: document.getElementById('play-icon'), playLoader: document.getElementById('play-loader'), prevBtn: document.getElementById('prev-btn'),
             nextBtn: document.getElementById('next-btn'), speedSlider: document.getElementById('speed-slider'), speedVal: document.getElementById('speed-val'),
-            miniSpeedVal: document.getElementById('mini-speed-val'), pitchSlider: document.getElementById('pitch-slider'), pitchVal: document.getElementById('pitch-val'),
-            visualizer: document.getElementById('visualizer'), status: document.getElementById('status-text'), chunkInfo: document.getElementById('chunk-info'),
-            toaster: document.getElementById('toaster'), toasterMsg: document.getElementById('toaster-msg'), scrapeBtn: document.getElementById('scrape-btn'),
-            editToggleBtn: document.getElementById('edit-toggle-btn'), sidebar: document.getElementById('sidebar'), menuToggle: document.getElementById('menu-toggle'),
-            sidebarOverlay: document.getElementById('sidebar-overlay'), closeSidebar: document.getElementById('close-sidebar'), btnSummarize: document.getElementById('btn-summarize'),
-            btnSimplify: document.getElementById('btn-simplify'), btnQuiz: document.getElementById('btn-quiz'), quizModal: document.getElementById('quiz-modal'),
-            quizContent: document.getElementById('quiz-content'), closeQuiz: document.getElementById('close-quiz'), progressBar: document.getElementById('progress-bar'),
-            viewReader: document.getElementById('view-reader'), viewVoices: document.getElementById('view-voices'), navReader: document.getElementById('nav-reader'),
-            navVoices: document.getElementById('nav-voices'), voiceGrid: document.getElementById('voice-grid'), engineBadge: document.getElementById('engine-badge'),
-            systemVoiceSelect: document.getElementById('system-voice-select'), engineGemini: document.getElementById('engine-gemini'), enginePuter: document.getElementById('engine-puter'),
-            puterStatus: document.getElementById('puter-status'), envStatus: document.getElementById('env-status'), authControls: document.getElementById('auth-controls'),
-            btnPuterLogin: document.getElementById('btn-puter-login'), installArea: document.getElementById('install-area'), btnInstall: document.getElementById('btn-install')
+            miniSpeedVal: document.getElementById('mini-speed-val'), pitchSlider: document.getElementById('pitch-slider'), visualizer: document.getElementById('visualizer'),
+            status: document.getElementById('status-text'), chunkInfo: document.getElementById('chunk-info'), toaster: document.getElementById('toaster'), toasterMsg: document.getElementById('toaster-msg'),
+            scrapeBtn: document.getElementById('scrape-btn'), editToggleBtn: document.getElementById('edit-toggle-btn'), sidebar: document.getElementById('sidebar'),
+            menuToggle: document.getElementById('menu-toggle'), sidebarOverlay: document.getElementById('sidebar-overlay'), closeSidebar: document.getElementById('close-sidebar'),
+            btnSummarize: document.getElementById('btn-summarize'), btnSimplify: document.getElementById('btn-simplify'), progressBar: document.getElementById('progress-bar'),
+            viewReader: document.getElementById('view-reader'), viewVoices: document.getElementById('view-voices'), viewLibrary: document.getElementById('view-library'),
+            navReader: document.getElementById('nav-reader'), navVoices: document.getElementById('nav-voices'), navLibrary: document.getElementById('nav-library'),
+            voiceGrid: document.getElementById('voice-grid'), engineBadge: document.getElementById('engine-badge'), systemVoiceSelect: document.getElementById('system-voice-select'),
+            engineGemini: document.getElementById('engine-gemini'), enginePuter: document.getElementById('engine-puter'), puterStatus: document.getElementById('puter-status'),
+            authControls: document.getElementById('auth-controls'), btnPuterLogin: document.getElementById('btn-puter-login'), libraryList: document.getElementById('library-list')
         };
 
         lucide.createIcons();
+        for(let i=0; i<12; i++) { const d=document.createElement('div'); d.className='v-bar'; if(els.visualizer) els.visualizer.appendChild(d); }
+        function initAudio() { if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (state.audioCtx.state === 'suspended') state.audioCtx.resume(); }
 
-        // Install Logic
-        window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); state.deferredPrompt = e; if (els.installArea) els.installArea.classList.remove('hidden'); });
-        if (els.btnInstall) els.btnInstall.onclick = () => { if(els.installArea) els.installArea.classList.add('hidden'); if (state.deferredPrompt) { state.deferredPrompt.prompt(); state.deferredPrompt = null; } };
-
-        // Puter Auth
+        /* --- AUTH --- */
         async function checkPuterAuth() {
-            if (window.location.protocol === 'file:') {
-                if (els.puterStatus) els.puterStatus.textContent = "FILE MODE";
-                if (els.envStatus) { els.envStatus.textContent = "⚠️ Local File (Login Unavailable)"; els.envStatus.classList.add('text-red-400'); }
-                if (els.authControls) els.authControls.innerHTML = `<div class="text-[10px] text-red-300 bg-red-900/20 p-2 rounded">Login unavailable in file mode.</div>`;
-                return;
-            }
-            if (els.envStatus) { els.envStatus.textContent = "✅ Web Mode (Login Supported)"; els.envStatus.classList.add('text-green-400'); }
-            if (typeof puter !== 'undefined' && puter.auth && puter.auth.isSignedIn()) { const user = await puter.auth.getUser(); state.puterUser = user; updateAuthUI(true); } 
+            if (window.location.protocol === 'file:') { if(els.puterStatus) els.puterStatus.textContent = "FILE MODE"; return; }
+            if (typeof puter !== 'undefined' && puter.auth && puter.auth.isSignedIn()) { const u = await puter.auth.getUser(); state.puterUser = u; updateAuthUI(true); } 
             else updateAuthUI(false);
         }
         function updateAuthUI(isLoggedIn) {
-            if (!els.puterStatus || !els.authControls) return;
+            if (!els.authControls) return;
             if (isLoggedIn) {
-                els.puterStatus.textContent = "CONNECTED"; els.puterStatus.classList.add("text-green-400"); els.puterStatus.classList.remove("text-white/50");
-                els.authControls.innerHTML = `<div class="flex items-center gap-3 bg-white/5 p-2 rounded-lg mb-2"><div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold text-black">${state.puterUser.username.charAt(0).toUpperCase()}</div><div class="flex-1 overflow-hidden"><div class="text-xs font-bold text-white truncate">${state.puterUser.username}</div><div class="text-[10px] text-green-400">Unlimited Quota Active</div></div></div><button onclick="logoutPuter()" class="w-full text-xs text-red-400 hover:text-red-300 py-3 transition">Logout</button>`;
+                els.puterStatus.textContent = "CONNECTED"; els.puterStatus.classList.add("text-green-400");
+                els.authControls.innerHTML = `<div class="flex items-center gap-3 bg-white/5 p-2 rounded-lg mb-2"><div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-xs font-bold text-black">${state.puterUser.username.charAt(0).toUpperCase()}</div><div class="text-xs font-bold text-white">${state.puterUser.username}</div></div><button onclick="logoutPuter()" class="w-full text-xs text-red-400 py-2">Logout</button>`;
             } else {
-                els.puterStatus.textContent = "GUEST"; els.puterStatus.classList.remove("text-green-400"); els.puterStatus.classList.add("text-white/50");
-                els.authControls.innerHTML = `<button onclick="loginPuter()" id="btn-login-action" class="w-full bg-white text-black py-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 active:scale-95 hover:bg-gray-200">Connect Puter Account</button>`;
+                els.puterStatus.textContent = "GUEST"; els.puterStatus.classList.remove("text-green-400");
+                els.authControls.innerHTML = `<button onclick="loginPuter()" class="w-full bg-white text-black py-3 rounded-lg text-sm font-bold">Connect Puter Account</button>`;
             }
         }
-        window.loginPuter = async () => { const btn = document.getElementById('btn-login-action'); if(btn) btn.innerText = "Connecting..."; const timeout = new Promise((_, r) => setTimeout(() => r(new Error("Timeout")), 60000)); try { await Promise.race([puter.auth.signIn(), timeout]); await checkPuterAuth(); toast("Logged in!", "success"); } catch (e) { console.error(e); toast("Login Failed", "error"); updateAuthUI(false); } };
+        window.loginPuter = async () => { try { await puter.auth.signIn(); await checkPuterAuth(); toast("Logged in!", "success"); } catch (e) { toast("Login Failed", "error"); } };
         window.logoutPuter = async () => { await puter.auth.signOut(); state.puterUser = null; updateAuthUI(false); toast("Logged out", "neutral"); };
         checkPuterAuth();
 
-        // Audio & Voices
-        function initAudio() { if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (state.audioCtx.state === 'suspended') state.audioCtx.resume(); }
-        for (let i = 0; i < 12; i++) { const bar = document.createElement('div'); bar.className = 'v-bar'; if (els.visualizer) els.visualizer.appendChild(bar); }
-        function populateSystemVoices() { if (!state.synth) return; state.systemVoices = state.synth.getVoices(); if (state.systemVoices.length === 0) setTimeout(() => { state.systemVoices = state.synth.getVoices(); renderSystemVoiceSelect(); }, 500); else renderSystemVoiceSelect(); }
-        function renderSystemVoiceSelect() { if (!els.systemVoiceSelect) return; els.systemVoiceSelect.innerHTML = ''; if (state.systemVoices.length === 0) { els.systemVoiceSelect.innerHTML = '<option disabled>No system voices.</option>'; return; } const defaultVoice = state.systemVoices.find(v => v.name === state.settings.systemVoiceName) || state.systemVoices.find(v => v.lang.startsWith('en')) || state.systemVoices[0]; state.settings.systemVoiceName = defaultVoice.name; localStorage.setItem("system_voice_name", state.settings.systemVoiceName); state.systemVoices.forEach(voice => { const option = document.createElement('option'); option.value = voice.name; option.textContent = `${voice.name} (${voice.lang})`; option.selected = voice.name === state.settings.systemVoiceName; els.systemVoiceSelect.appendChild(option); }); }
-        if (state.synth) { populateSystemVoices(); state.synth.onvoiceschanged = populateSystemVoices; }
-
-        function renderVoiceGrid() { if (!els.voiceGrid) return; els.voiceGrid.innerHTML = ''; VOICES.forEach(v => { const card = document.createElement('div'); const isSelected = state.settings.voice === v.name; card.className = `glass-card p-4 rounded-xl cursor-pointer hover:bg-white/5 flex flex-col gap-2 ${isSelected ? 'active' : ''}`; let providerBadge = v.provider === 'gemini' ? `<span class="text-[10px] text-blue-400 bg-blue-400/10 px-1.5 rounded border border-blue-400/20">Gemini</span>` : `<span class="text-[10px] text-green-400 bg-green-400/10 px-1.5 rounded border border-green-400/20">Puter</span>`; card.innerHTML = `<div class="flex justify-between items-center"><span class="font-semibold text-sm ${isSelected ? 'text-white' : 'text-white/70'}">${v.label}</span>${providerBadge}</div><div class="flex justify-between items-end"><p class="text-xs text-white/50 w-3/4">${v.desc}</p><div class="px-2 py-0.5 rounded-full text-[10px] bg-white/10 border border-white/10 text-white/70">${v.tone}</div></div>`; card.onclick = () => selectVoice(v); els.voiceGrid.appendChild(card); }); }
-        renderVoiceGrid();
-
-        function selectVoice(voiceObj) { state.settings.voice = voiceObj.name; setEngine(voiceObj.provider); toast(`Voice: ${voiceObj.name}`, "success"); state.audioCache = {}; renderVoiceGrid(); if (state.isPlaying) { stopPlayback(); setTimeout(togglePlay, 200); } }
-        function setEngine(engine) {
-            state.settings.preferredProvider = engine; state.fallbackMode = false; updateBadge();
-            if (engine === 'gemini') { if (els.engineGemini) { els.engineGemini.className = "px-4 py-2 rounded-md text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/50 transition-all active:scale-95"; } if (els.enginePuter) { els.enginePuter.className = "px-4 py-2 rounded-md text-xs font-medium text-white/50 hover:text-white transition-all active:scale-95"; } } 
-            else { if (els.enginePuter) { els.enginePuter.className = "px-4 py-2 rounded-md text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/50 transition-all active:scale-95"; } if (els.engineGemini) { els.engineGemini.className = "px-4 py-2 rounded-md text-xs font-medium text-white/50 hover:text-white transition-all active:scale-95"; } }
-        }
-        function updateBadge() { if (!els.engineBadge) return; if (state.fallbackMode) { els.engineBadge.className = "engine-badge badge-system"; els.engineBadge.innerText = "SYSTEM"; } else if (state.settings.preferredProvider === 'gemini') { els.engineBadge.className = "engine-badge badge-gemini"; els.engineBadge.innerText = "GEMINI AI"; } else { els.engineBadge.className = "engine-badge badge-puter"; els.engineBadge.innerText = "PUTER AI"; } }
-
-        function switchView(viewName) {
-            state.view = viewName;
-            if (viewName === 'reader') {
-                if (els.viewReader) els.viewReader.classList.add('active'); if (els.viewVoices) els.viewVoices.classList.remove('active');
-                if (els.navReader) { els.navReader.classList.add('bg-white', 'text-black'); els.navReader.classList.remove('bg-white/10', 'text-white'); }
-                if (els.navVoices) { els.navVoices.classList.remove('bg-white', 'text-black'); els.navVoices.classList.add('bg-white/10', 'text-white'); }
+        /* --- SYSTEM VOICE INIT --- */
+        function populateSystemVoices() {
+            if (!state.synth) return;
+            state.systemVoices = state.synth.getVoices();
+            if (state.systemVoices.length === 0) {
+                setTimeout(() => {
+                    state.systemVoices = state.synth.getVoices();
+                    renderSystemVoiceSelect();
+                }, 500);
             } else {
-                if (els.viewReader) els.viewReader.classList.remove('active'); if (els.viewVoices) els.viewVoices.classList.add('active');
-                if (els.navVoices) { els.navVoices.classList.add('bg-white', 'text-black'); els.navVoices.classList.remove('bg-white/10', 'text-white'); }
-                if (els.navReader) { els.navReader.classList.remove('bg-white', 'text-black'); els.navReader.classList.add('bg-white/10', 'text-white'); }
+                renderSystemVoiceSelect();
             }
+        }
+        
+        function renderSystemVoiceSelect() {
+            if (!els.systemVoiceSelect) return;
+            els.systemVoiceSelect.innerHTML = '';
+            if (state.systemVoices.length === 0) {
+                els.systemVoiceSelect.innerHTML = '<option disabled>No system voices.</option>';
+                return;
+            }
+            const defaultVoice = state.systemVoices.find(v => v.name === state.settings.systemVoiceName) || state.systemVoices.find(v => v.lang.startsWith('en')) || state.systemVoices[0];
+            state.settings.systemVoiceName = defaultVoice.name;
+            localStorage.setItem("system_voice_name", state.settings.systemVoiceName);
+
+            state.systemVoices.forEach(voice => {
+                const option = document.createElement('option');
+                option.value = voice.name;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.selected = voice.name === state.settings.systemVoiceName;
+                els.systemVoiceSelect.appendChild(option);
+            });
+        }
+
+        if (state.synth) {
+            populateSystemVoices();
+            state.synth.onvoiceschanged = populateSystemVoices;
+        }
+
+        /* --- LIBRARY SYSTEM --- */
+        function saveToLibrary(text) {
+            if(text.length < 50) return; // Too short
+            const title = text.split('\n')[0].substring(0, 40) + "...";
+            const date = new Date().toLocaleDateString();
+            const id = Date.now();
+            state.library.unshift({ id, title, text, date });
+            localStorage.setItem('gemini_library', JSON.stringify(state.library));
+            renderLibrary();
+        }
+        function deleteItem(id) {
+            state.library = state.library.filter(i => i.id !== id);
+            localStorage.setItem('gemini_library', JSON.stringify(state.library));
+            renderLibrary();
+            toast("Deleted from Library", "neutral");
+        }
+        function loadItem(id) {
+            const item = state.library.find(i => i.id === id);
+            if(item) {
+                els.mainText.value = item.text;
+                processText();
+                switchView('reader');
+                toast("Loaded: " + item.title, "success");
+            }
+        }
+        function renderLibrary() {
+            if(!els.libraryList) return;
+            if(state.library.length === 0) {
+                els.libraryList.innerHTML = `<div class="p-8 text-center text-white/30 text-sm italic">No articles saved yet. Import or paste text to save.</div>`;
+                return;
+            }
+            els.libraryList.innerHTML = state.library.map(item => `
+                <div class="lib-item p-4 flex justify-between items-center">
+                    <div onclick="loadItem(${item.id})" class="cursor-pointer flex-1">
+                        <h4 class="font-semibold text-white text-sm mb-1">${item.title}</h4>
+                        <p class="text-xs text-white/50">${item.date} • ${Math.ceil(item.text.split(' ').length / 200)} min read</p>
+                    </div>
+                    <button onclick="deleteItem(${item.id})" class="p-2 text-white/30 hover:text-red-400 transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+        window.deleteItem = deleteItem; window.loadItem = loadItem;
+        renderLibrary();
+
+        /* --- VIEW LOGIC --- */
+        function switchView(v) {
+            state.view = v;
+            ['reader', 'library', 'voices'].forEach(section => {
+                const el = document.getElementById(`view-${section}`);
+                const btn = document.getElementById(`nav-${section}`);
+                if(section === v) {
+                    el.classList.add('active');
+                    btn.classList.remove('nav-btn-inactive'); btn.classList.add('nav-btn-active');
+                } else {
+                    el.classList.remove('active');
+                    btn.classList.remove('nav-btn-active'); btn.classList.add('nav-btn-inactive');
+                }
+            });
         }
         window.switchView = switchView;
 
-        // Core Playback Logic (Smart Chunking + Parallel Buffering)
+        /* --- TEXT PROCESSING (SMART CHUNKING) --- */
         function processText() {
-            if (!els.mainText) return; const raw = els.mainText.value.trim(); if (!raw) return;
-            state.textChunks = []; let currentChunk = "";
-            const sentences = raw.match(/[^.!?\n]+[.!?\n]+/g) || [raw];
-            sentences.forEach(sent => {
-                if((currentChunk + sent).length < 200) currentChunk += sent; 
-                else { if(currentChunk) state.textChunks.push(currentChunk.trim()); currentChunk = sent; }
-            });
-            if(currentChunk) state.textChunks.push(currentChunk.trim());
+            const raw = els.mainText.value.trim(); if(!raw) return;
+            // Save to library if new content
+            if(state.textChunks.length === 0 || state.textChunks.join(' ') !== raw) saveToLibrary(raw);
+
+            state.textChunks = [];
+            let htmlOutput = "";
+            let chunkCounter = 0;
+
+            // CHUNKING STRATEGY
+            // Puter: Paragraph based (Smoothness)
+            // Gemini: Sentence based (Granularity)
+            const useParagraphs = state.settings.preferredProvider === 'puter';
             
-            // Build HTML
-            if(els.readerDisplay) {
-                els.readerDisplay.innerHTML = state.textChunks.map((chunk, i) => 
-                    `<p id="chunk-${i}" class="chunk" onclick="skipTo(${i})">${chunk}</p>`
-                ).join('');
-            }
-            state.currentChunkIndex = 0; state.audioCache = {}; if(state.textChunks.length > 0) setReaderMode(true); updateUI();
+            const blocks = raw.split(/\n\n+/); // Split by paragraphs first
+
+            blocks.forEach(block => {
+                // Headers are always standalone chunks
+                if (block.startsWith('#')) {
+                    const text = block.replace(/^#+\s*/, '');
+                    state.textChunks.push(text);
+                    htmlOutput += `<h2 id="chunk-${chunkCounter}" class="chunk" onclick="skipTo(${chunkCounter})">${text}</h2>`;
+                    chunkCounter++;
+                } else {
+                    htmlOutput += '<p>';
+                    if (useParagraphs) {
+                        // PUTER: Keep paragraph together if reasonably sized (<1000 chars), else split by sentences
+                        if(block.length < 800) {
+                            state.textChunks.push(block);
+                            htmlOutput += `<span id="chunk-${chunkCounter}" class="chunk" onclick="skipTo(${chunkCounter})">${block}</span>`;
+                            chunkCounter++;
+                        } else {
+                            // Split long paragraphs
+                            const sents = block.match(/[^.!?]+[.!?]+["']?|[^.!?]+$/g) || [block];
+                            sents.forEach(s => {
+                                if(s.trim()){ state.textChunks.push(s.trim()); htmlOutput += `<span id="chunk-${chunkCounter}" class="chunk" onclick="skipTo(${chunkCounter})">${s.trim()} </span>`; chunkCounter++; }
+                            });
+                        }
+                    } else {
+                        // GEMINI: Strict sentence splitting
+                        const sents = block.match(/[^.!?]+[.!?]+["']?|[^.!?]+$/g) || [block];
+                        sents.forEach(s => {
+                            if(s.trim()){ state.textChunks.push(s.trim()); htmlOutput += `<span id="chunk-${chunkCounter}" class="chunk" onclick="skipTo(${chunkCounter})">${s.trim()} </span>`; chunkCounter++; }
+                        });
+                    }
+                    htmlOutput += '</p>';
+                }
+            });
+
+            els.readerDisplay.innerHTML = htmlOutput;
+            state.currentChunkIndex = 0; state.audioCache = {};
+            if(state.textChunks.length > 0) setReaderMode(true);
+            updateUI();
         }
 
-        async function fetchPuterTTS(text) { try { return await puter.ai.txt2speech(text, { engine: 'neural', voice: state.settings.voice }); } catch (e) { if (typeof e === 'object' && (e.code === 'insufficient_funds' || e.error?.code === 'insufficient_funds')) throw new Error("PUTER_QUOTA_EXCEEDED"); throw e; } }
-        async function fetchGeminiTTS(text) { if (!state.apiKey) throw new Error("No API Key"); const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${state.apiKey}`; const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: state.settings.voice } } } } }) }); if (!res.ok) { if (res.status === 429) throw new Error("QUOTA_EXCEEDED"); throw new Error(await res.text()); } const data = await res.json(); const binary = atob(data.candidates[0].content.parts[0].inlineData.data); const len = binary.length; const bytes = new Uint8Array(len); for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i); const wav = new Uint8Array(44 + len); const view = new DataView(wav.buffer); const writeString = (o, s) => { for (let i=0; i<s.length; i++) view.setUint8(o+i, s.charCodeAt(i)); }; writeString(0, 'RIFF'); view.setUint32(4, 36 + len, true); writeString(8, 'WAVE'); writeString(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true); view.setUint32(24, 24000, true); view.setUint32(28, 48000, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true); writeString(36, 'data'); view.setUint32(40, len, true); wav.set(bytes, 44); return new Audio(URL.createObjectURL(new Blob([wav], {type: 'audio/wav'}))); }
-        async function smartFetch(text) { if (state.fallbackMode) return null; if (state.settings.preferredProvider === 'puter') { try { return await fetchPuterTTS(text); } catch(e) { if(e.message==="PUTER_QUOTA_EXCEEDED") toast("Quota Hit. Using System Voice.", "neutral"); state.fallbackMode = true; return null; } } try { return await fetchGeminiTTS(text); } catch(e) { if(e.message.includes("QUOTA")) { toast("Gemini Quota. Using Puter.", "neutral"); state.settings.preferredProvider='puter'; updateBadge(); try { return await fetchPuterTTS(text); } catch(err) { state.fallbackMode=true; return null; } } throw e; } }
-        async function playChunk(index) {
-            if (index < 0 || index >= state.textChunks.length) { stopPlayback(); return; }
-            const pid = state.playbackId; state.currentChunkIndex = index; updateUI();
-            const el = document.getElementById(`chunk-${index}`); if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
-            if (state.fallbackMode) { updateBadge(); playSystemTTS(state.textChunks[index], index); return; }
-            
-            // Check cache or fetch
-            if (!state.audioCache[index]) {
+        /* --- AUDIO PIPELINE --- */
+        async function fetchPuterTTS(text) {
+            try { const a = await puter.ai.txt2speech(text, { engine: 'neural', voice: state.settings.voice }); return a; }
+            catch(e) { if(typeof e==='object' && e.code==='insufficient_funds') throw new Error("PUTER_QUOTA"); throw e; }
+        }
+        async function fetchGeminiTTS(text) {
+            if(!state.apiKey) throw new Error("No API Key");
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${state.apiKey}`;
+            const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text}]}], generationConfig:{responseModalities:["AUDIO"], speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:state.settings.voice}}}}})});
+            if(!res.ok) { if(res.status===429) throw new Error("QUOTA_EXCEEDED"); throw new Error(await res.text()); }
+            const d = await res.json(); const b = atob(d.candidates[0].content.parts[0].inlineData.data);
+            const len=b.length; const u=new Uint8Array(len); for(let i=0; i<len; i++) u[i]=b.charCodeAt(i);
+            const wav=new Uint8Array(44+len); const v=new DataView(wav.buffer);
+            const s=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i))}; s(0,'RIFF');v.setUint32(4,36+len,true);s(8,'WAVE');s(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,24000,true);v.setUint32(28,48000,true);v.setUint16(32,2,true);v.setUint16(34,16,true);s(36,'data');v.setUint32(40,len,true);wav.set(u,44);
+            return new Audio(URL.createObjectURL(new Blob([wav],{type:'audio/wav'})));
+        }
+        async function smartFetch(text) {
+            if(state.fallbackMode) return null;
+            if(state.settings.preferredProvider === 'puter') {
+                try { return await fetchPuterTTS(text); } 
+                catch(e) { if(e.message==="PUTER_QUOTA") toast("Puter Quota. Using System.", "neutral"); state.fallbackMode=true; return null; }
+            }
+            try { return await fetchGeminiTTS(text); }
+            catch(e) { if(e.message.includes("QUOTA")) { toast("Gemini Quota. Using Puter.", "neutral"); state.settings.preferredProvider='puter'; updateBadge(); try { return await fetchPuterTTS(text); } catch(er){state.fallbackMode=true; return null;} } throw e; }
+        }
+
+        async function playChunk(idx) {
+            if(idx<0 || idx>=state.textChunks.length) { stopPlayback(); return; }
+            const pid = state.playbackId; state.currentChunkIndex = idx; updateUI();
+            const el = document.getElementById(`chunk-${idx}`); if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
+            if(state.fallbackMode) { updateBadge(); playSystemTTS(state.textChunks[idx]); return; }
+            if(!state.audioCache[idx]) {
                 setLoading(true);
-                try {
-                    const audio = await smartFetch(state.textChunks[index]);
-                    if(state.playbackId !== pid) return;
-                    if(!audio) { updateBadge(); playSystemTTS(state.textChunks[index], index); setLoading(false); return; }
-                    state.audioCache[index] = audio;
-                } catch(e) { if(state.playbackId === pid) { setLoading(false); toast("Error: "+e.message, "error"); } return; }
+                try { const a = await smartFetch(state.textChunks[idx]); if(state.playbackId!==pid)return; if(!a) { updateBadge(); playSystemTTS(state.textChunks[idx]); setLoading(false); return; } state.audioCache[idx]=a; }
+                catch(e) { if(state.playbackId===pid) { setLoading(false); toast("Error", "error"); } return; }
                 setLoading(false);
             }
-            if(state.playbackId !== pid || !state.isPlaying) return;
-            if(state.currentAudio) { state.currentAudio.pause(); state.currentAudio.currentTime = 0; }
-            const audio = state.audioCache[index];
-            state.currentAudio = audio; audio.playbackRate = state.settings.speed;
+            if(state.playbackId!==pid || !state.isPlaying) return;
+            if(state.currentAudio) { state.currentAudio.pause(); state.currentAudio.currentTime=0; }
+            const audio = state.audioCache[idx]; state.currentAudio = audio; audio.playbackRate = state.settings.speed;
             startVisualizer();
             try { await audio.play(); } catch(e){}
-            audio.onended = () => { stopVisualizer(); if(state.isPlaying && state.playbackId === pid) playChunk(index+1); };
-            
-            // Aggressive Prefetch (Parallel)
-            if(state.settings.preferredProvider === 'puter') {
-                for(let i=1; i<=3; i++) preloadChunk(index+i);
-            } else {
-                preloadChunk(index+1);
-            }
+            audio.onended = () => { stopVisualizer(); if(state.isPlaying && state.playbackId===pid) playChunk(idx+1); };
+            // Aggressive Prefetch for Puter (One-Go Feel)
+            if(state.settings.preferredProvider==='puter') { for(let i=1; i<=4; i++) preloadChunk(idx+i); } else { preloadChunk(idx+1); }
         }
-        function playSystemTTS(text, index) { const pid = state.playbackId; if(!state.synth) return; if (state.synth.speaking) state.synth.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = state.settings.speed; const v = state.systemVoices.find(v=>v.name===state.settings.systemVoiceName); if(v) u.voice=v; startVisualizer(); u.onend = () => { stopVisualizer(); if(state.isPlaying && state.playbackId === pid) playChunk(index+1); }; state.synth.speak(u); }
-        async function preloadChunk(i) { if(i < state.textChunks.length && !state.audioCache[i] && !state.fallbackMode) { try { const a = await smartFetch(state.textChunks[i]); if(a) state.audioCache[i]=a; } catch(e){} } }
+
+        function playSystemTTS(text) {
+            const pid = state.playbackId; if(!state.synth) return; if(state.synth.speaking) state.synth.cancel();
+            const u = new SpeechSynthesisUtterance(text); u.rate = state.settings.speed;
+            const v = state.systemVoices.find(v=>v.name===state.settings.systemVoiceName); if(v) u.voice=v;
+            startVisualizer(); u.onend = () => { stopVisualizer(); if(state.isPlaying && state.playbackId===pid) playChunk(state.currentChunkIndex+1); };
+            state.synth.speak(u);
+        }
+        async function preloadChunk(i) { if(i<state.textChunks.length && !state.audioCache[i] && !state.fallbackMode) { try{const a=await smartFetch(state.textChunks[i]);if(a)state.audioCache[i]=a;}catch(e){} } }
+        
+        /* --- UTILS --- */
         function toast(msg, type='neutral') { if(!els.toasterMsg) return; els.toasterMsg.innerText = msg; els.toasterMsg.className = `glass px-6 py-3 rounded-full text-sm font-medium shadow-2xl flex items-center gap-2 bg-black/90 backdrop-blur-md border border-white/20 ${type==='error'?'text-red-400':type==='success'?'text-green-400':'text-white'}`; els.toaster.classList.add('show'); setTimeout(()=>els.toaster.classList.remove('show'), 3000); }
         function startVisualizer() { stopVisualizer(); state.visualizerInterval = setInterval(()=>document.querySelectorAll('.v-bar').forEach(b=>b.style.height=(Math.random()*24+4)+'px'), 80); }
         function stopVisualizer() { if(state.visualizerInterval) clearInterval(state.visualizerInterval); document.querySelectorAll('.v-bar').forEach(b=>b.style.height='4px'); }
-        function updateUI() { if(els.playIcon) els.playIcon.setAttribute('data-lucide', state.isPlaying ? 'pause' : 'play'); lucide.createIcons(); if(els.status) els.status.innerText = state.isPlaying ? 'PLAYING' : 'READY'; if(els.chunkInfo) els.chunkInfo.innerText = `${state.currentChunkIndex+1} / ${state.textChunks.length}`; if(els.progressBar) els.progressBar.style.width = ((state.currentChunkIndex/state.textChunks.length)*100)+'%'; updateBadge(); document.querySelectorAll('.chunk').forEach(el => el.classList.remove('active')); const activeEl = document.getElementById(`chunk-${state.currentChunkIndex}`); if(activeEl) activeEl.classList.add('active'); }
-        function togglePlay() { if(state.textChunks.length===0) processText(); if(state.textChunks.length===0) return toast("No text", "error"); if(state.isPlaying) stopPlayback(); else { state.isPlaying=true; state.playbackId++; setReaderMode(true); playChunk(state.currentChunkIndex); updateUI(); } }
-        function stopPlayback() { state.isPlaying=false; state.playbackId++; if(state.currentAudio) state.currentAudio.pause(); if(state.synth) state.synth.cancel(); stopVisualizer(); updateUI(); setLoading(false); }
+        function updateUI() {
+            if(els.playIcon) els.playIcon.setAttribute('data-lucide', state.isPlaying ? 'pause' : 'play'); lucide.createIcons();
+            if(els.status) els.status.innerText = state.isPlaying ? 'PLAYING' : 'READY';
+            if(els.chunkInfo) els.chunkInfo.innerText = `${state.currentChunkIndex+1} / ${state.textChunks.length}`;
+            if(els.progressBar) els.progressBar.style.width = ((state.currentChunkIndex/state.textChunks.length)*100)+'%';
+            updateBadge();
+            document.querySelectorAll('.chunk').forEach(el => el.classList.remove('active'));
+            const activeEl = document.getElementById(`chunk-${state.currentChunkIndex}`); if(activeEl) activeEl.classList.add('active');
+        }
         function setLoading(b) { if(els.playIcon) { els.playIcon.classList.toggle('hidden', b); els.playLoader.classList.toggle('hidden', !b); } }
         function setReaderMode(b) { els.mainText.classList.toggle('hidden', b); els.readerDisplay.classList.toggle('hidden', !b); els.editToggleBtn.classList.toggle('hidden', !b); els.scrapeBtn.classList.toggle('hidden', b); }
-        window.skipTo = (i) => { if(i!==state.currentChunkIndex) { state.playbackId++; state.isPlaying=false; if(state.currentAudio)state.currentAudio.pause(); if(state.synth)state.synth.cancel(); stopVisualizer(); setTimeout(()=>{state.isPlaying=true; playChunk(i);},50); } };
+        function updateBadge() { if(!els.engineBadge)return; if(state.fallbackMode){els.engineBadge.className="engine-badge badge-system";els.engineBadge.innerText="SYSTEM";} else if(state.settings.preferredProvider==='gemini'){els.engineBadge.className="engine-badge badge-gemini";els.engineBadge.innerText="GEMINI AI";} else{els.engineBadge.className="engine-badge badge-puter";els.engineBadge.innerText="PUTER AI";} }
+        
+        function renderVoiceGrid() {
+            if (!els.voiceGrid) return; els.voiceGrid.innerHTML = '';
+            VOICES.forEach(v => {
+                const card = document.createElement('div'); const isSelected = state.settings.voice === v.name;
+                card.className = `glass-card p-4 rounded-xl cursor-pointer hover:bg-white/5 flex flex-col gap-2 ${isSelected ? 'active' : ''}`;
+                let providerBadge = v.provider === 'gemini' ? `<span class="text-[10px] text-blue-400 bg-blue-400/10 px-1.5 rounded border border-blue-400/20">Gemini</span>` : `<span class="text-[10px] text-green-400 bg-green-400/10 px-1.5 rounded border border-green-400/20">Puter</span>`;
+                card.innerHTML = `<div class="flex justify-between items-center"><span class="font-semibold text-sm ${isSelected ? 'text-white' : 'text-white/70'}">${v.label}</span>${providerBadge}</div><div class="flex justify-between items-end"><p class="text-xs text-white/50 w-3/4">${v.desc}</p><div class="px-2 py-0.5 rounded-full text-[10px] bg-white/10 border border-white/10 text-white/70">${v.tone}</div></div>`;
+                card.onclick = () => selectVoice(v); els.voiceGrid.appendChild(card);
+            });
+        }
+        function selectVoice(v) { state.settings.voice=v.name; setEngine(v.provider); toast(`Voice: ${v.name}`, "success"); state.audioCache={}; renderVoiceGrid(); if(state.isPlaying) { stopPlayback(); setTimeout(togglePlay, 200); } }
+        function setEngine(e) {
+            state.settings.preferredProvider=e; state.fallbackMode=false; updateBadge();
+            if(e==='gemini') { if(els.engineGemini) els.engineGemini.className="px-4 py-2 rounded-md text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/50 transition-all active:scale-95"; if(els.enginePuter) els.enginePuter.className="px-4 py-2 rounded-md text-xs font-medium text-white/50 hover:text-white transition-all active:scale-95"; }
+            else { if(els.enginePuter) els.enginePuter.className="px-4 py-2 rounded-md text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/50 transition-all active:scale-95"; if(els.engineGemini) els.engineGemini.className="px-4 py-2 rounded-md text-xs font-medium text-white/50 hover:text-white transition-all active:scale-95"; }
+            // Re-process to apply correct chunking strategy
+            processText();
+        }
 
-        // Listeners
-        if(els.engineGemini) els.engineGemini.onclick = () => selectVoice(VOICES.find(v => v.provider === 'gemini')); if(els.enginePuter) els.enginePuter.onclick = () => selectVoice(VOICES.find(v => v.provider === 'puter'));
-        if(els.playBtn) els.playBtn.onclick = togglePlay;
+        /* --- LISTENERS --- */
+        window.skipTo = (i) => { if(i!==state.currentChunkIndex) { state.playbackId++; state.isPlaying=false; if(state.currentAudio)state.currentAudio.pause(); if(state.synth)state.synth.cancel(); stopVisualizer(); setTimeout(()=>{state.isPlaying=true; playChunk(i);},50); } };
+        if(els.engineGemini) els.engineGemini.onclick = () => selectVoice(VOICES.find(v => v.provider === 'gemini'));
+        if(els.enginePuter) els.enginePuter.onclick = () => selectVoice(VOICES.find(v => v.provider === 'puter'));
+        if(els.playBtn) els.playBtn.onclick = () => { if(state.textChunks.length===0) processText(); if(state.textChunks.length===0) return toast("No text", "error"); if(state.isPlaying) stopPlayback(); else { state.isPlaying=true; state.playbackId++; setReaderMode(true); playChunk(state.currentChunkIndex); updateUI(); } };
         if(els.prevBtn) els.prevBtn.onclick = () => { if(state.currentChunkIndex>0) { stopPlayback(); state.isPlaying=true; playChunk(state.currentChunkIndex-1); } };
         if(els.nextBtn) els.nextBtn.onclick = () => { if(state.currentChunkIndex<state.textChunks.length-1) { stopPlayback(); state.isPlaying=true; playChunk(state.currentChunkIndex+1); } };
-        if(els.speedSlider) els.speedSlider.oninput = (e) => { const v = parseFloat(e.target.value); state.settings.speed=v; if(els.speedVal) els.speedVal.innerText=v.toFixed(1)+'x'; if(els.miniSpeedVal) els.miniSpeedVal.innerText=v.toFixed(1)+'x'; if(state.currentAudio && !state.fallbackMode) state.currentAudio.playbackRate=v; if(state.fallbackMode && state.synth && state.synth.speaking) { state.synth.cancel(); playSystemTTS(state.textChunks[state.currentChunkIndex], state.currentChunkIndex); } };
+        if(els.speedSlider) els.speedSlider.oninput = (e) => { const v = parseFloat(e.target.value); state.settings.speed=v; if(els.speedVal) els.speedVal.innerText=v.toFixed(1)+'x'; if(els.miniSpeedVal) els.miniSpeedVal.innerText=v.toFixed(1)+'x'; if(state.currentAudio) state.currentAudio.playbackRate=v; };
         if(els.editToggleBtn) els.editToggleBtn.onclick = () => { setReaderMode(false); stopPlayback(); };
-        if(els.scrapeBtn) els.scrapeBtn.onclick = async () => { if(!els.urlInput.value) return toast("Enter URL", "error"); els.scrapeBtn.innerHTML = `<div class="loader w-4 h-4 border-white/30 border-l-white"></div>`; try { const res = await fetch(`https://r.jina.ai/${els.urlInput.value}`); if(!res.ok) throw new Error("Fetch failed"); const text = await res.text(); if(text.length<100) throw new Error("Blocked"); els.mainText.value = text; processText(); toast("Imported", "success"); } catch(e) { toast("Error: "+e.message, "error"); } finally { els.scrapeBtn.innerHTML = `<i data-lucide="download-cloud" class="w-4 h-4 text-white"></i>`; lucide.createIcons(); } };
+        if(els.scrapeBtn) els.scrapeBtn.onclick = async () => {
+            if(!els.urlInput.value) return toast("Enter URL", "error");
+            els.scrapeBtn.innerHTML = `<div class="loader w-4 h-4 border-white/30 border-l-white"></div>`;
+            try { const res = await fetch(`https://r.jina.ai/${els.urlInput.value}`); if(!res.ok) throw new Error("Fetch failed"); const text = await res.text(); if(text.length<100) throw new Error("Blocked"); els.mainText.value = text; processText(); toast("Imported", "success"); } catch(e) { toast("Error: "+e.message, "error"); } finally { els.scrapeBtn.innerHTML = `<i data-lucide="download-cloud" class="w-4 h-4 text-white"></i>`; lucide.createIcons(); }
+        };
+        
+        // Mobile Menus
         if(els.menuToggle) els.menuToggle.onclick = () => { if(els.sidebar) els.sidebar.classList.remove('translate-x-full'); if(els.sidebarOverlay) els.sidebarOverlay.classList.remove('hidden'); };
         const closeMenu = () => { if(els.sidebar) els.sidebar.classList.add('translate-x-full'); if(els.sidebarOverlay) els.sidebarOverlay.classList.add('hidden'); };
         if(els.closeSidebar) els.closeSidebar.onclick = closeMenu; if(els.sidebarOverlay) els.sidebarOverlay.onclick = closeMenu;
+        
+        // API Key
         const syncKey = (e) => { state.apiKey = e.target.value; localStorage.setItem("gemini_key", state.apiKey); if(els.apiKey) els.apiKey.value=state.apiKey; if(els.mobileApiKey) els.mobileApiKey.value=state.apiKey; };
         if(els.apiKey) els.apiKey.oninput = syncKey; if(els.mobileApiKey) els.mobileApiKey.oninput = syncKey; if(els.apiKey) els.apiKey.value = state.apiKey; if(els.mobileApiKey) els.mobileApiKey.value = state.apiKey;
+        
+        // System Voices
+        if (state.synth) { populateSystemVoices(); state.synth.onvoiceschanged = populateSystemVoices; }
+        renderVoiceGrid();
+        if(els.systemVoiceSelect) els.systemVoiceSelect.onchange = (e) => { state.settings.systemVoiceName = e.target.value; localStorage.setItem("system_voice_name", state.settings.systemVoiceName); toast("System Voice Set", "success"); };
+
     </script>
 </body>
 </html>
