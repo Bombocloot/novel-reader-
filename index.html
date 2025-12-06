@@ -8,192 +8,192 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
     <title>Gemini Reader</title>
-    
-    <!-- PWA Manifest Injection (Critical for Installability) -->
+
     <link rel="manifest" id="manifest-placeholder">
     <script>
-        const manifest = {
-            "name": "Gemini Reader",
-            "short_name": "GeminiReader",
-            "start_url": ".",
-            "display": "standalone",
-            "background_color": "#000000",
-            "theme_color": "#000000",
-            "orientation": "portrait-primary",
-            "icons": [
-                { "src": "https://cdn-icons-png.flaticon.com/512/3063/3063228.png", "sizes": "192x192", "type": "image/png" },
-                { "src": "https://cdn-icons-png.flaticon.com/512/3063/3063228.png", "sizes": "512x512", "type": "image/png" }
-            ]
-        };
-        const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-        document.querySelector('#manifest-placeholder').setAttribute('href', URL.createObjectURL(blob));
-
-        // Attempt to register a dummy Service Worker to satisfy PWA criteria (Best Effort for Single File)
-        if ('serviceWorker' in navigator) {
-            const swCode = `self.addEventListener('fetch', () => {});`;
-            const swBlob = new Blob([swCode], {type: 'application/javascript'});
-            const swUrl = URL.createObjectURL(swBlob);
-            // Note: Browsers may block Blob SWs due to security, but this is the only way in a single file.
-            navigator.serviceWorker.register(swUrl).catch(e => console.log("SW Registration Info:", e));
-        }
+        try {
+            const manifest = {
+                "name": "Gemini Reader",
+                "short_name": "GeminiReader",
+                "start_url": ".",
+                "display": "standalone",
+                "background_color": "#000000",
+                "theme_color": "#000000",
+                "orientation": "portrait-primary",
+                "icons": [
+                    { "src": "https://cdn-icons-png.flaticon.com/512/3063/3063228.png", "sizes": "192x192", "type": "image/png" },
+                    { "src": "https://cdn-icons-png.flaticon.com/512/3063/3063228.png", "sizes": "512x512", "type": "image/png" }
+                ]
+            };
+            const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+            document.querySelector('#manifest-placeholder').setAttribute('href', URL.createObjectURL(blob));
+            if ('serviceWorker' in navigator) {
+                const swCode = `self.addEventListener('fetch', () => {});`;
+                const swUrl = URL.createObjectURL(new Blob([swCode], {type: 'application/javascript'}));
+                navigator.serviceWorker.register(swUrl).catch(e => console.log("SW Info:", e.message));
+            }
+        } catch(e) { console.log("PWA setup skipped"); }
     </script>
 
-    <!-- Fonts & Icons -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Fonts -->
+    <style>
+        @font-face {
+            font-family: 'OpenDyslexic';
+            src: url('https://cdn.jsdelivr.net/npm/opendyslexic@2.1.0-beta/fonts/OpenDyslexic-Regular.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'OpenDyslexic';
+            src: url('https://cdn.jsdelivr.net/npm/opendyslexic@2.1.0-beta/fonts/OpenDyslexic-Bold.woff') format('woff');
+            font-weight: bold;
+            font-style: normal;
+        }
+    </style>
+    
+    <!-- Libraries -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://js.puter.com/v2/"></script>
 
     <style>
-        :root {
-            --safe-bottom: env(safe-area-inset-bottom, 20px);
-            --safe-top: env(safe-area-inset-top, 20px);
-        }
-
-        body {
-            background-color: #0d0d0d;
-            color: #ffffff;
-            font-family: 'Inter', sans-serif;
-            overflow-x: hidden;
-            -webkit-tap-highlight-color: transparent;
-            overscroll-behavior-y: none;
-        }
-
-        .glass {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
+        :root { --safe-bottom: env(safe-area-inset-bottom, 20px); --safe-top: env(safe-area-inset-top, 20px); }
         
-        .floating-player {
-            background: rgba(18, 18, 18, 0.95);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+        body, button, input, textarea, select, h1, h2, h3, p, span, div, li {
+            font-family: 'OpenDyslexic', 'Comic Sans MS', sans-serif !important;
+        }
+
+        body { background-color: #050505; color: #ffffff; overflow-x: hidden; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+        
+        #app-loader { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; justify-content: center; align-items: center; transition: opacity 0.5s ease; pointer-events: none; }
+        #app-loader.fade-out { opacity: 0; pointer-events: none; }
+
+        @keyframes slideInUp { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .animate-enter { animation: slideInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
+
+        .molten-player {
+            position: fixed;
+            bottom: max(20px, var(--safe-bottom));
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            min-width: 340px;
+            max-width: 95vw;
+            padding: 8px 16px;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border-radius: 9999px;
+            box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(255, 255, 255, 0.05), inset 0 0 40px rgba(0, 0, 0, 0.8);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
-            border-radius: 28px;
-            margin-bottom: var(--safe-bottom);
             z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #fff;
         }
 
-        .glass-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(10px);
-            transition: all 0.2s ease;
-            user-select: none;
-            cursor: pointer;
-        }
-        .glass-card:active { transform: scale(0.98); background: rgba(255, 255, 255, 0.08); }
-        .glass-card.active {
-            background: rgba(255, 255, 255, 0.12);
-            border-color: rgba(255, 255, 255, 0.3);
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
-        }
+        .engine-dot { width: 6px; height: 6px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
 
-        .view-section { display: none; opacity: 0; transition: opacity 0.3s ease-in-out; height: 100%; flex-direction: column; }
+        .view-section { display: none; opacity: 0; height: 100%; flex-direction: column; }
         .view-section.active { display: flex; opacity: 1; }
 
-        /* Reader Text Styles */
-        #reader-display {
-            line-height: 1.9;
-            font-size: 1.2rem;
-            color: rgba(255, 255, 255, 0.5); /* Dimmed inactive text */
-            padding-bottom: calc(180px + var(--safe-bottom));
-        }
-        #reader-display h1 { font-size: 2em; font-weight: 800; color: white; margin-top: 1.5em; margin-bottom: 0.8em; letter-spacing: -0.02em; padding: 0 16px; }
-        #reader-display h2 { font-size: 1.6em; font-weight: 700; color: white; margin-top: 1.4em; margin-bottom: 0.6em; letter-spacing: -0.01em; padding: 0 16px; }
-        
-        /* PARAGRAPH BUBBLE STYLE - WHITE */
-        #reader-display p {
-            margin-bottom: 0.5em;
-            padding: 24px 28px;
-            border-radius: 24px;
-            border: 1px solid transparent;
-            transition: all 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-        
-        /* White Bubble Active State */
-        #reader-display p.active-paragraph {
-            background-color: rgba(255, 255, 255, 0.1); /* White Tint */
-            border-color: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); /* Darker shadow for contrast on black bg */
-            transform: scale(1.01);
-            backdrop-filter: blur(5px);
+        /* Reader Display - FIXED SCROLL BEHAVIOR */
+        #reader-display { 
+            line-height: 2.4; 
+            font-size: 1.2rem; 
+            letter-spacing: 0.03em;
+            word-spacing: 0.1em;
+            color: rgba(255, 255, 255, 0.4); 
+            padding-bottom: 60vh; 
+            /* CRITICAL FIX: Disable CSS smooth scroll to let Physics Engine work properly */
+            scroll-behavior: auto !important;
+            position: relative;
+            /* Improve scrolling performance */
+            will-change: scroll-position;
         }
 
-        /* Chunk (Sentence) Highlight */
-        .chunk {
-            transition: color 0.3s ease;
-            transition-delay: 0.05s;
-            border-radius: 4px;
-            cursor: pointer;
+        /* FORMATTING STYLES */
+        .block-header { color: #ffffff; font-weight: 800; margin-top: 2em; margin-bottom: 1em; padding: 0 16px; }
+        .block-h1 { font-size: 1.8em; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5em; }
+        .block-h2 { font-size: 1.5em; }
+        .block-h3 { font-size: 1.25em; color: #e0e0e0; }
+        .block-quote { border-left: 4px solid #A0522D; padding-left: 20px; margin: 1.5em 0; font-style: italic; background: rgba(255,255,255,0.02); }
+        .block-list-item { margin-left: 1em; margin-bottom: 0.5em; display: flex; align-items: flex-start; }
+        .list-bullet { color: #A0522D; margin-right: 10px; font-weight: bold; margin-top: 0.4em; }
+
+        .paragraph-block { margin-bottom: 1.5em; padding: 24px 28px; border-radius: 16px; border: 1px solid transparent; transition: background-color 0.3s ease; }
+        .paragraph-block.active-context { background-color: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.1); }
+
+        .sentence-chunk { 
+            display: inline;
+            transition: color 0.2s ease; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            padding: 2px 0;
+            margin-right: 4px;
+            color: rgba(255, 255, 255, 0.35); 
         }
-        .chunk:hover { color: rgba(255,255,255,0.9); }
-        .chunk.active { 
-            color: #ffffff; /* Bright White Text */
-            text-shadow: 0 0 2px rgba(255, 255, 255, 0.5); /* Subtle glow */
-            font-weight: 400;
+        .sentence-chunk:hover { color: rgba(255,255,255,0.8); }
+        .sentence-chunk.active { color: #ffffff !important; opacity: 1; text-shadow: 0 0 10px rgba(255, 255, 255, 0.2); font-weight: normal; }
+        
+        .word-active { 
+            background-color: #A0522D !important;
+            color: #ffffff !important;
+            border-radius: 3px;
+            box-shadow: 0 0 0 2px #A0522D; 
+            z-index: 10;
+            position: relative;
         }
 
-        /* Components */
-        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; padding: 10px 0; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #ffffff; cursor: pointer; margin-top: -8px; box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
-        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: rgba(255,255,255,0.2); border-radius: 2px; }
-        
-        .v-bar { width: 4px; background: #ffffff; border-radius: 2px; transition: height 0.1s ease; min-height: 4px; }
-        
+        .player-btn { color: rgba(255,255,255,0.6); transition: all 0.2s; padding: 8px; border-radius: 50%; }
+        .player-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
+        .player-btn:active { transform: scale(0.95); }
+
+        #play-btn-circle { width: 44px; height: 44px; background: #fff; color: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(255,255,255,0.1); transition: transform 0.2s; }
+        #play-btn-circle:active { transform: scale(0.95); }
+        .loader { border: 2px solid rgba(0,0,0,0.2); border-left-color: #000; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         #toaster { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: translateY(-150%); top: 10px; z-index: 100; }
         #toaster.show { transform: translateY(var(--safe-top)); }
-
         #sidebar { transition: transform 0.3s ease-in-out; padding-bottom: var(--safe-bottom); }
-        
-        .loader { border: 2px solid rgba(255,255,255,0.2); border-left-color: #000; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        .engine-badge { padding: 3px 10px; border-radius: 8px; font-size: 10px; font-weight: 700; display: inline-block; letter-spacing: 0.8px; text-transform: uppercase; }
-        .badge-gemini { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
-        .badge-puter { background: rgba(34, 197, 94, 0.15); color: #86efac; border: 1px solid rgba(34, 197, 94, 0.3); }
-        .badge-system { background: rgba(255, 255, 255, 0.1); color: #9ca3af; border: 1px solid rgba(255, 255, 255, 0.2); }
-        
-        .nav-btn { padding: 8px 14px; border-radius: 10px; font-size: 0.8rem; font-weight: 500; transition: all 0.2s; }
-        .nav-btn-active { background: #ffffff; color: #000000; font-weight: 600; box-shadow: 0 4px 12px rgba(255,255,255,0.15); transform: translateY(-1px); }
-        .nav-btn-inactive { color: rgba(255, 255, 255, 0.6); background: transparent; }
-        .nav-btn-inactive:hover { color: #fff; background: rgba(255,255,255,0.05); }
-        
-        /* Install Button - Hidden by default, shown via JS */
-        #btn-install-header { display: none; }
-        #btn-install-header.visible { display: flex; }
+        .glass-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(10px); cursor: pointer; }
+        .glass-card.active { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.3); }
+        .nav-btn-active { background: #ffffff; color: #000000; font-weight: 600; box-shadow: 0 4px 12px rgba(255,255,255,0.15); }
+        .nav-btn-inactive { color: rgba(255, 255, 255, 0.6); }
+        #btn-install-header { display: none; } #btn-install-header.visible { display: flex; }
     </style>
 </head>
 <body class="h-screen flex flex-col relative overflow-hidden">
 
-    <!-- Toaster -->
-    <div id="toaster" class="fixed left-0 right-0 flex justify-center pointer-events-none">
-        <div id="toaster-msg" class="glass px-6 py-3 rounded-full text-sm font-medium shadow-2xl flex items-center gap-2 bg-black/90 backdrop-blur-md border-white/20"></div>
+    <div id="app-loader">
+        <div class="flex flex-col items-center gap-4">
+            <div class="loader" style="border-color: rgba(255,255,255,0.1); border-left-color: #fff;"></div>
+            <div class="text-white/50 text-xs tracking-widest uppercase">Initializing</div>
+        </div>
     </div>
 
-    <!-- Header -->
+    <div id="toaster" class="fixed left-0 right-0 flex justify-center pointer-events-none">
+        <div id="toaster-msg" class="glass px-6 py-3 rounded-full text-sm font-bold shadow-2xl flex items-center gap-2 bg-black/90 backdrop-blur-md border-white/20"></div>
+    </div>
+
     <header class="glass sticky top-0 z-30 h-16 px-4 flex items-center justify-between border-b border-white/5 shrink-0">
         <div class="flex items-center gap-4">
             <div class="flex items-center gap-2 cursor-pointer group" onclick="window.switchView('reader')">
                 <i data-lucide="waves" class="text-white w-6 h-6 group-hover:scale-110 transition-transform"></i>
                 <span class="font-bold tracking-wide hidden md:block text-white text-lg">Gemini<span class="text-white/40 font-normal">Reader</span></span>
             </div>
-            
             <nav class="flex bg-white/5 rounded-xl p-1 gap-1">
-                <button onclick="window.switchView('reader')" id="nav-reader" class="nav-btn nav-btn-active">Reader</button>
-                <button onclick="window.switchView('library')" id="nav-library" class="nav-btn nav-btn-inactive">Library</button>
-                <button onclick="window.switchView('voices')" id="nav-voices" class="nav-btn nav-btn-inactive">Voices</button>
+                <button onclick="window.switchView('reader')" id="nav-reader" class="nav-btn nav-btn-active px-3 py-2 text-xs rounded-lg transition">Reader</button>
+                <button onclick="window.switchView('library')" id="nav-library" class="nav-btn nav-btn-inactive px-3 py-2 text-xs rounded-lg transition">Library</button>
+                <button onclick="window.switchView('voices')" id="nav-voices" class="nav-btn nav-btn-inactive px-3 py-2 text-xs rounded-lg transition">Voices</button>
             </nav>
         </div>
-        
         <div class="flex items-center gap-3">
             <button id="btn-install-header" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-3 rounded-lg transition-colors items-center gap-2 shadow-lg shadow-blue-900/20">
-                <i data-lucide="download" class="w-3 h-3"></i> Install
+                <i data-lucide="download" class="w-3 h-3"></i>
             </button>
             <button id="menu-toggle" class="md:hidden p-2 rounded active:bg-white/10">
                 <i data-lucide="menu" class="w-6 h-6 text-white"></i>
@@ -201,49 +201,34 @@
         </div>
     </header>
 
-    <!-- Main Layout -->
     <main class="flex-1 flex overflow-hidden relative">
-        
-        <!-- VIEW 1: READER -->
         <div id="view-reader" class="view-section active relative">
             <div class="p-4 flex gap-2 border-b border-white/5 shrink-0 bg-black/20">
                 <div class="flex-1 relative">
                     <i data-lucide="link" class="absolute left-3 top-2.5 w-4 h-4 text-white/40"></i>
-                    <input type="text" id="url-input" placeholder="Paste article URL..." 
-                        class="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/10 transition-all placeholder-white/20">
+                    <input type="text" id="url-input" placeholder="Paste article URL..." class="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-white/10 transition-all placeholder-white/20">
                 </div>
-                <button id="scrape-btn" class="glass px-4 rounded-xl hover:bg-white/10 transition-colors flex items-center justify-center min-w-[44px] active:bg-white/20">
-                    <i data-lucide="download-cloud" class="w-4 h-4 text-white"></i>
-                </button>
-                <button id="edit-toggle-btn" class="glass px-4 rounded-xl hover:bg-white/10 transition-colors flex items-center justify-center min-w-[44px] hidden active:bg-white/20">
-                    <i data-lucide="edit-2" class="w-4 h-4 text-white"></i>
-                </button>
+                <button id="scrape-btn" class="glass px-4 rounded-xl hover:bg-white/10 transition-colors flex items-center justify-center min-w-[44px] active:bg-white/20"><i data-lucide="download-cloud" class="w-4 h-4 text-white"></i></button>
+                <button id="edit-toggle-btn" class="glass px-4 rounded-xl hover:bg-white/10 transition-colors flex items-center justify-center min-w-[44px] hidden active:bg-white/20"><i data-lucide="edit-2" class="w-4 h-4 text-white"></i></button>
             </div>
-            <textarea id="main-text" 
-                class="flex-1 w-full bg-transparent p-6 md:p-8 resize-none focus:outline-none text-xl leading-relaxed text-body font-light placeholder-white/10"
-                placeholder="Paste text here or import from URL..."></textarea>
+            <textarea id="main-text" class="flex-1 w-full bg-transparent p-6 md:p-8 resize-none focus:outline-none text-xl leading-relaxed text-body font-light placeholder-white/10" placeholder="Paste text here or import from URL..."></textarea>
             <div id="reader-display" class="hidden flex-1 w-full bg-transparent p-4 md:px-8 overflow-y-auto text-body font-light"></div>
         </div>
 
-        <!-- VIEW 2: LIBRARY -->
         <div id="view-library" class="view-section p-6 overflow-y-auto pb-40">
             <div class="max-w-4xl mx-auto w-full">
                 <h2 class="text-xl font-bold mb-6 text-white flex items-center gap-3">
-                    <div class="p-2 bg-blue-500/20 rounded-lg"><i data-lucide="library" class="w-5 h-5 text-blue-400"></i></div>
-                    My Library
+                    <div class="p-2 bg-blue-500/20 rounded-lg"><i data-lucide="library" class="w-5 h-5 text-blue-400"></i></div> My Library
                 </h2>
                 <div id="library-list" class="glass rounded-2xl border border-white/10 overflow-hidden"></div>
             </div>
         </div>
 
-        <!-- VIEW 3: VOICES -->
         <div id="view-voices" class="view-section p-6 overflow-y-auto pb-40">
             <div class="max-w-4xl mx-auto w-full">
                 <div class="glass p-5 rounded-2xl border border-white/10 mb-6">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-white flex items-center gap-2">
-                            <i data-lucide="user" class="w-4 h-4 text-white/70"></i> Puter Account
-                        </h3>
+                        <h3 class="font-bold text-white flex items-center gap-2"><i data-lucide="user" class="w-4 h-4 text-white/70"></i> Puter Account</h3>
                         <span id="puter-status" class="text-[10px] uppercase font-bold tracking-wider text-white/50 bg-white/5 px-2 py-1 rounded">Checking...</span>
                     </div>
                     <div id="auth-controls">
@@ -251,7 +236,7 @@
                     </div>
                 </div>
                 <div class="glass p-5 rounded-2xl border border-white/10 mb-6 flex justify-between items-center">
-                    <div><h3 class="font-bold text-white text-sm">Engine Preference</h3><p class="text-xs text-white/40 mt-1">Puter (Smooth Paragraphs) vs Gemini (Precise Sentences)</p></div>
+                    <div><h3 class="font-bold text-white text-sm">Engine Preference</h3><p class="text-xs text-white/40 mt-1">Puter (Neural) vs Gemini (Precise)</p></div>
                     <div class="flex bg-black/40 p-1.5 rounded-xl">
                         <button id="engine-gemini" class="px-4 py-2 rounded-lg text-xs font-bold text-white/50 hover:text-white transition-all active:scale-95">Gemini</button>
                         <button id="engine-puter" class="px-4 py-2 rounded-lg text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/50 transition-all active:scale-95 shadow-sm">Puter.js</button>
@@ -259,52 +244,29 @@
                 </div>
                 <h2 class="text-lg font-bold mb-4 text-white">Neural Voices</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="voice-grid"></div>
-                <div id="system-voice-controls" class="mt-8 p-5 glass rounded-2xl border border-white/10">
-                    <h3 class="text-sm font-bold text-white mb-2 flex items-center gap-2"><i data-lucide="volume-2" class="w-4 h-4 text-white/70"></i> Offline System Voice</h3>
-                    <select id="system-voice-select" class="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-sm text-white focus:outline-none focus:border-white/30"></select>
-                </div>
             </div>
         </div>
-        
-        <!-- FLOATING PLAYER -->
-        <div class="fixed bottom-6 left-4 right-4 z-50 controls-overlay">
-            <div class="floating-player p-5 max-w-2xl mx-auto">
-                <div class="flex justify-between items-center h-6 mb-4">
-                    <div id="visualizer" class="flex items-end gap-1 h-full w-24 opacity-60"></div>
-                    <div class="text-right">
-                        <div class="flex items-center gap-2 justify-end mb-1">
-                            <span id="engine-badge" class="engine-badge badge-puter">PUTER AI</span>
-                            <div id="status-text" class="text-[9px] font-mono text-white/50 tracking-widest uppercase font-bold">READY</div>
-                        </div>
-                        <div id="chunk-info" class="text-[10px] text-white/40 font-medium">0 / 0</div>
-                    </div>
-                </div>
-                <div class="flex items-center gap-5 md:gap-8">
-                    <div class="flex items-center gap-3 md:gap-5">
-                        <button id="prev-btn" class="p-2 text-white/50 hover:text-white transition active:scale-95"><i data-lucide="skip-back" class="w-6 h-6"></i></button>
-                        
-                        <!-- BOLD PLAY BUTTON -->
-                        <button id="play-btn" class="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition shadow-2xl shadow-white/10 relative overflow-hidden group">
-                            <!-- Play Icon (Direct SVG Injection) -->
-                            <div id="play-icon-container" class="flex items-center justify-center"></div>
-                            <div id="play-loader" class="loader border-gray-800 border-l-transparent hidden w-6 h-6"></div>
-                        </button>
-                        
-                        <button id="next-btn" class="p-2 text-white/50 hover:text-white transition active:scale-95"><i data-lucide="skip-forward" class="w-6 h-6"></i></button>
-                    </div>
-                    <div class="flex-1 mx-2 relative h-1.5 bg-white/10 rounded-full overflow-hidden cursor-pointer group hover:h-2 transition-all">
-                        <div id="progress-bar" class="absolute top-0 left-0 h-full bg-white w-0 transition-all duration-300 shadow-[0_0_10px_rgba(255,255,255,0.5)]"></div>
-                    </div>
-                     <div class="flex items-center gap-2 min-w-[50px] justify-end">
-                        <i data-lucide="zap" class="w-3.5 h-3.5 text-white/70"></i>
-                        <span id="mini-speed-val" class="text-xs font-mono font-bold text-white/90">1.0x</span>
-                    </div>
-                </div>
+
+        <div class="molten-player controls-overlay">
+            <div id="player-engine-indicator" class="flex items-center gap-2 px-2 border-r border-white/10 pr-3 mr-1">
+                <div id="player-engine-dot" class="engine-dot bg-green-400 text-green-400"></div>
+                <span id="player-engine-name" class="text-[10px] font-bold tracking-wider uppercase text-white/50">Puter</span>
+            </div>
+            <button id="prev-btn" class="player-btn"><i data-lucide="skip-back" class="w-5 h-5"></i></button>
+            <button id="play-btn-circle">
+                <div id="play-icon-container" class="flex items-center justify-center"><i data-lucide="play" class="w-5 h-5 fill-current"></i></div>
+                <div id="play-loader" class="loader w-5 h-5 border-gray-400 border-l-transparent hidden"></div>
+            </button>
+            <button id="next-btn" class="player-btn"><i data-lucide="skip-forward" class="w-5 h-5"></i></button>
+            <div class="flex-1 mx-2 relative h-1 bg-white/10 rounded-full overflow-hidden">
+                <div id="progress-bar" class="absolute top-0 left-0 h-full bg-white w-0 transition-all duration-300 shadow-[0_0_10px_rgba(255,255,255,0.5)]"></div>
+            </div>
+            <div class="flex items-center gap-1 text-[10px] font-bold tracking-tight text-white/60 min-w-[30px]">
+                <span id="chunk-info">0/0</span>
             </div>
         </div>
     </main>
 
-    <!-- Sidebar -->
     <aside id="sidebar" class="glass w-80 fixed md:static inset-y-0 right-0 transform translate-x-full md:translate-x-0 z-[70] border-l border-white/10 flex flex-col bg-[#050505]/95 md:bg-transparent backdrop-blur-2xl md:backdrop-filter-none h-full shadow-2xl">
         <div class="p-5 border-b border-white/5 flex justify-between items-center mt-safe">
             <h2 class="text-xs font-bold uppercase tracking-widest text-white/40">Settings</h2>
@@ -314,12 +276,18 @@
             <div class="space-y-4">
                 <div class="flex justify-between items-baseline"><span class="text-xs font-bold uppercase text-white/60">Speed</span><span id="speed-val" class="text-xl font-light text-white">1.0x</span></div>
                 <input type="range" id="speed-slider" min="0.5" max="4.0" step="0.1" value="1.0">
-                <div class="mt-6 pt-6 border-t border-white/5"><div class="flex justify-between text-xs text-white/60 mb-3 font-bold uppercase"><span>Pitch</span><span id="pitch-val">0</span></div><input type="range" id="pitch-slider" min="-600" max="600" step="50" value="0"></div>
             </div>
             <div class="space-y-3 pt-4">
-                 <h3 class="text-xs font-bold uppercase text-white/60 mb-2">Tools</h3>
-                <button id="btn-summarize" class="w-full glass py-3.5 rounded-xl text-sm hover:bg-white/10 text-left px-4 flex items-center gap-3 transition active:scale-98 text-white group"><i data-lucide="file-text" class="w-4 h-4 text-white/50 group-hover:text-white transition-colors"></i> Summarize</button>
-                <button id="btn-simplify" class="w-full glass py-3.5 rounded-xl text-sm hover:bg-white/10 text-left px-4 flex items-center gap-3 transition active:scale-98 text-white group"><i data-lucide="baby" class="w-4 h-4 text-white/50 group-hover:text-white transition-colors"></i> Simplify</button>
+                 <h3 class="text-xs font-bold uppercase text-white/60 mb-2">Puter Diagnostics</h3>
+                <button onclick="PuterManager.checkLibrary()" class="w-full glass py-3.5 rounded-xl text-sm hover:bg-white/10 text-left px-4 flex items-center gap-3 transition active:scale-98 text-white group border border-white/10">
+                    <div class="w-2 h-2 rounded-full bg-blue-400"></div> Test 1: Check Library
+                </button>
+                <button onclick="PuterManager.checkAuth()" class="w-full glass py-3.5 rounded-xl text-sm hover:bg-white/10 text-left px-4 flex items-center gap-3 transition active:scale-98 text-white group border border-white/10">
+                    <div class="w-2 h-2 rounded-full bg-yellow-400"></div> Test 2: Check Auth
+                </button>
+                <button onclick="PuterManager.testAudio()" class="w-full glass py-3.5 rounded-xl text-sm hover:bg-white/10 text-left px-4 flex items-center gap-3 transition active:scale-98 text-white group border border-white/10">
+                    <div class="w-2 h-2 rounded-full bg-green-400"></div> Test 3: Test Audio
+                </button>
             </div>
             <div class="md:hidden pt-4 border-t border-white/5">
                 <input type="password" id="mobile-api-key" placeholder="Gemini API Key" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-white/50 outline-none">
@@ -329,6 +297,7 @@
     <div id="sidebar-overlay" class="fixed inset-0 bg-black/80 z-[65] hidden md:hidden glass border-0"></div>
 
     <script>
+        // --- 1. GLOBAL STATE & CONSTANTS ---
         const VOICES = [
             { name: "Joey", label: "Joey (Male)", desc: "Deep American voice.", tone: "Deep", provider: "puter" },
             { name: "Matthew", label: "Matthew (Male)", desc: "Very Deep, authoritative.", tone: "Deep", provider: "puter" },
@@ -342,154 +311,149 @@
 
         const state = {
             apiKey: localStorage.getItem("gemini_key") || "", isPlaying: false, textChunks: [], currentChunkIndex: 0, playbackId: 0, 
-            audioCache: {}, fetchQueue: [], settings: { speed: 1.0, pitch: 0, voice: "Joey", preferredProvider: "puter", systemVoiceName: localStorage.getItem("system_voice_name") || "" },
-            currentAudio: null, view: 'reader', fallbackMode: false, systemVoices: [], synth: window.speechSynthesis || null, visualizerInterval: null, puterUser: null,
-            library: savedLib, deferredPrompt: null
+            audioCache: {}, settings: { speed: 1.0, pitch: 0, voice: "Joey", preferredProvider: "puter" },
+            currentAudio: null, view: 'reader', fallbackMode: false, puterUser: null,
+            library: savedLib, deferredPrompt: null, wordHighlightFrame: null,
+            scroll: { current: 0, target: 0, velocity: 0, sleeping: true, manualOverride: false }
+        };
+        let els = {}; let manualTimeout = null;
+
+        // --- 2. UTILITIES ---
+        function toast(msg, type='neutral') {
+            if(!els.toasterMsg) return;
+            els.toasterMsg.innerText = msg;
+            els.toasterMsg.className = `glass px-6 py-3 rounded-full text-sm font-bold shadow-2xl flex items-center gap-2 bg-black/90 backdrop-blur-md border border-white/20 ${type==='error'?'text-red-400':type==='success'?'text-green-400':'text-white'}`;
+            els.toaster.classList.add('show'); setTimeout(()=>els.toaster.classList.remove('show'), 3000);
+        }
+
+        function countSyllables(word) {
+            word = word.toLowerCase(); if(word.length <= 3) return 1;
+            word = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '').replace(/^y/, '');
+            const syllables = word.match(/[aeiouy]{1,2}/g); return syllables ? syllables.length : 1;
+        }
+
+        // --- 3. SCROLL ENGINE (STABILIZED) ---
+        const ScrollEngine = {
+            config: { k: 0.04, d: 0.92, epsilon: 0.5 }, // Gentler springs
+            init() {
+                const container = document.getElementById('reader-display');
+                if(!container) return;
+                ['wheel', 'touchmove', 'touchstart'].forEach(evt => {
+                    container.addEventListener(evt, () => {
+                        if(state.scroll.sleeping) return;
+                        state.scroll.manualOverride = true;
+                        clearTimeout(manualTimeout);
+                        manualTimeout = setTimeout(() => {
+                            state.scroll.manualOverride = false;
+                            state.scroll.target = container.scrollTop;
+                            state.scroll.current = container.scrollTop;
+                            ScrollEngine.wake();
+                        }, 2500);
+                    }, { passive: true });
+                });
+                this.loop();
+            },
+            setTarget(el) {
+                const container = document.getElementById('reader-display');
+                if(!container || !el) return;
+                const elHeight = el.offsetHeight;
+                const viewHeight = container.clientHeight;
+                const elTop = el.offsetTop; 
+                let targetPos;
+                if (elHeight < viewHeight) targetPos = elTop - (viewHeight / 2) + (elHeight / 2);
+                else targetPos = elTop - (viewHeight * 0.2);
+                const maxScroll = container.scrollHeight - viewHeight;
+                targetPos = Math.max(0, Math.min(targetPos, maxScroll));
+                state.scroll.target = targetPos;
+                this.wake();
+            },
+            wake() { state.scroll.sleeping = false; this.loop(); },
+            loop() {
+                if (state.scroll.sleeping) return;
+                if (state.scroll.manualOverride) {
+                    const container = document.getElementById('reader-display');
+                    if(container) state.scroll.current = container.scrollTop;
+                    requestAnimationFrame(() => this.loop());
+                    return;
+                }
+                const force = (state.scroll.target - state.scroll.current) * this.config.k;
+                state.scroll.velocity = (state.scroll.velocity + force) * this.config.d;
+                state.scroll.current += state.scroll.velocity;
+                const container = document.getElementById('reader-display');
+                if (container) container.scrollTop = state.scroll.current;
+                if (Math.abs(state.scroll.target - state.scroll.current) < this.config.epsilon && Math.abs(state.scroll.velocity) < 0.1) {
+                    state.scroll.sleeping = true;
+                    if(container) container.scrollTop = state.scroll.target;
+                } else {
+                    requestAnimationFrame(() => this.loop());
+                }
+            }
         };
 
-        let els = {}; 
+        // --- 4. PUTER MANAGER ---
+        const PuterManager = {
+            checkLibrary: () => { if (typeof puter !== 'undefined') toast("Success: Puter.js Loaded", "success"); else toast("Failed: Puter.js NOT Found", "error"); },
+            checkAuth: async () => {
+                if (typeof puter === 'undefined') return toast("Lib missing", "error");
+                try {
+                    if(puter.auth.isSignedIn()) { const user = await puter.auth.getUser(); toast(`Signed In as: ${user.username}`, "success"); state.puterUser = user; updateAuthUI(true); } 
+                    else { toast("Not Signed In.", "neutral"); updateAuthUI(false); }
+                } catch(e) { toast("Auth Check Error", "error"); }
+            },
+            testAudio: async () => {
+                if (!puter.auth.isSignedIn()) return toast("Login Required", "error");
+                toast("Generating...", "neutral");
+                try { const audio = await puter.ai.txt2speech("System Check.", { engine: 'neural', voice: 'Joey' }); audio.play(); toast("Playing!", "success"); } 
+                catch(e) { if(e?.error?.code === 'insufficient_funds') toast("Puter Quota Exceeded", "error"); else toast("Error: " + e.message, "error"); }
+            },
+            fetchTTS: async (text) => {
+                if (!puter.auth.isSignedIn()) throw new Error("AUTH_REQUIRED");
+                try { return await puter.ai.txt2speech(text, { engine: 'neural', voice: state.settings.voice }); }
+                catch(e) { if(e?.error?.code === 'insufficient_funds') throw new Error("PUTER_QUOTA"); throw e; }
+            },
+            signIn: async () => { try { await puter.auth.signIn(); await PuterManager.checkAuth(); } catch(e){} },
+            signOut: async () => { await puter.auth.signOut(); state.puterUser = null; updateAuthUI(false); toast("Logged Out", "neutral"); }
+        };
+
+        // --- 5. DOM & APP LOGIC ---
+        function updateAuthUI(isLoggedIn) {
+            if (!els.authControls) return;
+            if (isLoggedIn && state.puterUser) {
+                els.puterStatus.textContent = "CONNECTED"; els.puterStatus.classList.add("text-green-400");
+                els.authControls.innerHTML = `<div class="flex items-center gap-3 bg-white/5 p-2 rounded-lg mb-2"><div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-xs font-bold text-black">${state.puterUser.username.charAt(0).toUpperCase()}</div><div class="text-xs font-bold text-white">${state.puterUser.username}</div></div><button id="btn-puter-logout" class="w-full text-xs text-red-400 py-2">Logout</button>`;
+                document.getElementById('btn-puter-logout').onclick = PuterManager.signOut;
+            } else {
+                els.puterStatus.textContent = "GUEST"; els.puterStatus.classList.remove("text-green-400");
+                els.authControls.innerHTML = `<button id="btn-puter-login" class="w-full bg-white text-black py-3 rounded-lg text-sm font-bold">Connect Puter Account</button>`;
+                document.getElementById('btn-puter-login').onclick = PuterManager.signIn;
+            }
+        }
+
+        function cleanupAudio() { Object.values(state.audioCache).forEach(audio => { if(audio && audio.src && audio.src.startsWith('blob:')) URL.revokeObjectURL(audio.src); }); state.audioCache = {}; }
 
         window.switchView = function(v) {
             state.view = v;
             ['reader', 'library', 'voices'].forEach(section => {
                 const el = document.getElementById(`view-${section}`);
                 const btn = document.getElementById(`nav-${section}`);
-                if(el && btn) {
-                    if(section === v) { el.classList.add('active'); btn.classList.remove('nav-btn-inactive'); btn.classList.add('nav-btn-active'); } 
-                    else { el.classList.remove('active'); btn.classList.remove('nav-btn-active'); btn.classList.add('nav-btn-inactive'); }
-                }
+                if(el && btn) { if(section === v) { el.classList.add('active'); el.classList.add('animate-enter'); btn.classList.remove('nav-btn-inactive'); btn.classList.add('nav-btn-active'); } else { el.classList.remove('active'); el.classList.remove('animate-enter'); btn.classList.remove('nav-btn-active'); btn.classList.add('nav-btn-inactive'); } }
             });
         };
 
-        window.loadItem = function(id) {
-            const item = state.library.find(i => i.id === id);
-            if(item && els.mainText) { els.mainText.value = item.text; processText(); window.switchView('reader'); toast("Loaded article", "success"); }
-        };
-
-        window.deleteItem = function(id) {
-            state.library = state.library.filter(i => i.id !== id); localStorage.setItem('gemini_library', JSON.stringify(state.library)); renderLibrary(); toast("Deleted", "neutral");
-        };
-
-        window.loginPuter = async function() { try { await puter.auth.signIn(); await checkPuterAuth(); toast("Logged in!", "success"); } catch (e) { console.error(e); toast("Login Failed", "error"); } };
-        window.logoutPuter = async function() { await puter.auth.signOut(); state.puterUser = null; updateAuthUI(false); toast("Logged out", "neutral"); };
-
-        window.skipTo = function(i) {
-            if(i !== state.currentChunkIndex) { 
-                state.playbackId++; state.isPlaying=false; 
-                if(state.currentAudio) state.currentAudio.pause(); 
-                if(state.synth) state.synth.cancel(); 
-                stopVisualizer(); 
-                setTimeout(() => { state.isPlaying=true; playChunk(i); }, 50); 
-            }
-        };
-
-        document.addEventListener('DOMContentLoaded', () => {
-            els = {
-                apiKey: document.getElementById('api-key-input'), mobileApiKey: document.getElementById('mobile-api-key'),
-                mainText: document.getElementById('main-text'), readerDisplay: document.getElementById('reader-display'), urlInput: document.getElementById('url-input'),
-                playBtn: document.getElementById('play-btn'), playIconContainer: document.getElementById('play-icon-container'), playLoader: document.getElementById('play-loader'),
-                prevBtn: document.getElementById('prev-btn'), nextBtn: document.getElementById('next-btn'),
-                speedSlider: document.getElementById('speed-slider'), speedVal: document.getElementById('speed-val'), miniSpeedVal: document.getElementById('mini-speed-val'),
-                visualizer: document.getElementById('visualizer'), status: document.getElementById('status-text'), chunkInfo: document.getElementById('chunk-info'),
-                toaster: document.getElementById('toaster'), toasterMsg: document.getElementById('toaster-msg'),
-                scrapeBtn: document.getElementById('scrape-btn'), editToggleBtn: document.getElementById('edit-toggle-btn'),
-                sidebar: document.getElementById('sidebar'), menuToggle: document.getElementById('menu-toggle'), sidebarOverlay: document.getElementById('sidebar-overlay'), closeSidebar: document.getElementById('close-sidebar'),
-                btnSummarize: document.getElementById('btn-summarize'), btnSimplify: document.getElementById('btn-simplify'),
-                progressBar: document.getElementById('progress-bar'),
-                voiceGrid: document.getElementById('voice-grid'), engineBadge: document.getElementById('engine-badge'), systemVoiceSelect: document.getElementById('system-voice-select'),
-                engineGemini: document.getElementById('engine-gemini'), enginePuter: document.getElementById('engine-puter'), puterStatus: document.getElementById('puter-status'),
-                authControls: document.getElementById('auth-controls'), libraryList: document.getElementById('library-list'),
-                btnInstallHeader: document.getElementById('btn-install-header')
-            };
-
-            if(typeof lucide !== 'undefined') lucide.createIcons();
-            if(els.visualizer) { els.visualizer.innerHTML = ''; for(let i=0; i<12; i++) { const d=document.createElement('div'); d.className='v-bar'; els.visualizer.appendChild(d); } }
-
-            if(els.engineGemini) els.engineGemini.onclick = () => selectVoice(VOICES.find(v => v.provider === 'gemini'));
-            if(els.enginePuter) els.enginePuter.onclick = () => selectVoice(VOICES.find(v => v.provider === 'puter'));
-            
-            if(els.playBtn) els.playBtn.onclick = togglePlay;
-            if(els.prevBtn) els.prevBtn.onclick = () => { if(state.currentChunkIndex>0) { stopPlayback(); state.isPlaying=true; playChunk(state.currentChunkIndex-1); } };
-            if(els.nextBtn) els.nextBtn.onclick = () => { if(state.currentChunkIndex<state.textChunks.length-1) { stopPlayback(); state.isPlaying=true; playChunk(state.currentChunkIndex+1); } };
-            
-            if(els.speedSlider) els.speedSlider.oninput = (e) => { 
-                const v = parseFloat(e.target.value); state.settings.speed=v; 
-                if(els.speedVal) els.speedVal.innerText=v.toFixed(1)+'x'; 
-                if(els.miniSpeedVal) els.miniSpeedVal.innerText=v.toFixed(1)+'x'; 
-                if(state.currentAudio) state.currentAudio.playbackRate=v; 
-            };
-            
-            if(els.editToggleBtn) els.editToggleBtn.onclick = () => { setReaderMode(false); stopPlayback(); };
-            
-            if(els.scrapeBtn) els.scrapeBtn.onclick = async () => {
-                if(!els.urlInput.value) return toast("Enter URL", "error");
-                els.scrapeBtn.innerHTML = `<div class="loader w-4 h-4 border-white/30 border-l-white"></div>`;
-                try { 
-                    const res = await fetch(`https://r.jina.ai/${els.urlInput.value}`); 
-                    if(!res.ok) throw new Error("Fetch failed"); 
-                    const text = await res.text(); 
-                    if(text.length<100) throw new Error("Blocked/Empty"); 
-                    els.mainText.value = text; processText(); toast("Imported", "success"); 
-                } catch(e) { toast("Error: "+e.message, "error"); } 
-                finally { els.scrapeBtn.innerHTML = `<i data-lucide="download-cloud" class="w-4 h-4 text-white"></i>`; if(typeof lucide!=='undefined') lucide.createIcons(); }
-            };
-
-            if(els.menuToggle) els.menuToggle.onclick = () => { if(els.sidebar) els.sidebar.classList.remove('translate-x-full'); if(els.sidebarOverlay) els.sidebarOverlay.classList.remove('hidden'); };
-            const closeMenu = () => { if(els.sidebar) els.sidebar.classList.add('translate-x-full'); if(els.sidebarOverlay) els.sidebarOverlay.classList.add('hidden'); };
-            if(els.closeSidebar) els.closeSidebar.onclick = closeMenu; if(els.sidebarOverlay) els.sidebarOverlay.onclick = closeMenu;
-
-            const syncKey = (e) => { state.apiKey = e.target.value; localStorage.setItem("gemini_key", state.apiKey); if(els.mobileApiKey) els.mobileApiKey.value=state.apiKey; };
-            if(els.mobileApiKey) els.mobileApiKey.oninput = syncKey; if(els.mobileApiKey) els.mobileApiKey.value = state.apiKey;
-
-            if(els.systemVoiceSelect) els.systemVoiceSelect.onchange = (e) => { state.settings.systemVoiceName = e.target.value; localStorage.setItem("system_voice_name", state.settings.systemVoiceName); toast("System Voice Set", "success"); };
-
-            window.addEventListener('beforeinstallprompt', (e) => { 
-                e.preventDefault(); state.deferredPrompt = e; 
-                if(els.btnInstallHeader) els.btnInstallHeader.classList.add('visible'); 
-            });
-            if(els.btnInstallHeader) els.btnInstallHeader.onclick = () => { 
-                if(els.btnInstallHeader) els.btnInstallHeader.classList.remove('visible'); 
-                if (state.deferredPrompt) { state.deferredPrompt.prompt(); state.deferredPrompt = null; } 
-            };
-
-            if(state.synth) { populateSystemVoices(); state.synth.onvoiceschanged = populateSystemVoices; }
-            renderVoiceGrid(); renderLibrary(); checkPuterAuth(); updateUI();
-        });
-
-        function toast(msg, type='neutral') {
-            if(!els.toasterMsg) return;
-            els.toasterMsg.innerText = msg;
-            els.toasterMsg.className = `glass px-6 py-3 rounded-full text-sm font-medium shadow-2xl flex items-center gap-2 bg-black/90 backdrop-blur-md border border-white/20 ${type==='error'?'text-red-400':type==='success'?'text-green-400':'text-white'}`;
-            els.toaster.classList.add('show'); setTimeout(()=>els.toaster.classList.remove('show'), 3000);
-        }
-
-        async function checkPuterAuth() {
-            if (window.location.protocol === 'file:') { if(els.puterStatus) els.puterStatus.textContent = "FILE MODE"; return; }
-            if (typeof puter !== 'undefined' && puter.auth && puter.auth.isSignedIn()) { const u = await puter.auth.getUser(); state.puterUser = u; updateAuthUI(true); } 
-            else updateAuthUI(false);
-        }
-        
-        function updateAuthUI(isLoggedIn) {
-            if (!els.authControls) return;
-            if (isLoggedIn) {
-                els.puterStatus.textContent = "CONNECTED"; els.puterStatus.classList.add("text-green-400");
-                els.authControls.innerHTML = `<div class="flex items-center gap-3 bg-white/5 p-2 rounded-lg mb-2"><div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-xs font-bold text-black">${state.puterUser.username.charAt(0).toUpperCase()}</div><div class="text-xs font-bold text-white">${state.puterUser.username}</div></div><button onclick="logoutPuter()" class="w-full text-xs text-red-400 py-2">Logout</button>`;
-            } else {
-                els.puterStatus.textContent = "GUEST"; els.puterStatus.classList.remove("text-green-400");
-                els.authControls.innerHTML = `<button onclick="loginPuter()" class="w-full bg-white text-black py-3 rounded-lg text-sm font-bold">Connect Puter Account</button>`;
-            }
-        }
+        window.loadItem = function(id) { const item = state.library.find(i => i.id === id); if(item && els.mainText) { els.mainText.value = item.text; processText(); window.switchView('reader'); toast("Loaded", "success"); } };
+        window.deleteItem = function(id) { state.library = state.library.filter(i => i.id !== id); localStorage.setItem('gemini_library', JSON.stringify(state.library)); renderLibrary(); toast("Deleted", "neutral"); };
+        window.skipTo = function(i) { if(i !== state.currentChunkIndex) { state.playbackId++; state.isPlaying=false; if(state.currentAudio) state.currentAudio.pause(); cancelAnimationFrame(state.wordHighlightFrame); setTimeout(() => { state.isPlaying=true; playChunk(i); }, 50); } };
 
         function renderLibrary() {
             if(!els.libraryList) return;
             if(state.library.length === 0) { els.libraryList.innerHTML = `<div class="p-8 text-center text-white/30 text-sm italic">No articles saved yet.</div>`; return; }
             els.libraryList.innerHTML = state.library.map(item => `
                 <div class="lib-item p-4 flex justify-between items-center">
-                    <div onclick="loadItem(${item.id})" class="cursor-pointer flex-1">
+                    <div onclick="window.loadItem(${item.id})" class="cursor-pointer flex-1">
                         <h4 class="font-semibold text-white text-sm mb-1">${item.title}</h4>
                         <p class="text-xs text-white/50">${item.date}</p>
                     </div>
-                    <button onclick="deleteItem(${item.id})" class="p-2 text-white/30 hover:text-red-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    <button onclick="window.deleteItem(${item.id})" class="p-2 text-white/30 hover:text-red-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                 </div>
             `).join('');
             if(typeof lucide !== 'undefined') lucide.createIcons();
@@ -506,149 +470,246 @@
             renderLibrary();
         }
 
-        function populateSystemVoices() {
-            if (!state.synth) return;
-            state.systemVoices = state.synth.getVoices();
-            if (state.systemVoices.length === 0) { setTimeout(() => { state.systemVoices = state.synth.getVoices(); renderSystemVoiceSelect(); }, 500); } else { renderSystemVoiceSelect(); }
-        }
-
-        function renderSystemVoiceSelect() {
-            if (!els.systemVoiceSelect) return;
-            els.systemVoiceSelect.innerHTML = '';
-            if (state.systemVoices.length === 0) { els.systemVoiceSelect.innerHTML = '<option disabled>No system voices.</option>'; return; }
-            state.systemVoices.forEach(voice => {
-                const option = document.createElement('option'); option.value = voice.name; option.textContent = `${voice.name} (${voice.lang})`;
-                if(voice.name === state.settings.systemVoiceName) option.selected = true;
-                els.systemVoiceSelect.appendChild(option);
-            });
-        }
-
+        // --- MARKDOWN-AWARE PROCESSOR ---
         function processText() {
             if (!els.mainText) return; const raw = els.mainText.value.trim(); if(!raw) return;
-            saveToLibrary(raw);
-            state.textChunks = []; let htmlOutput = ""; let chunkCounter = 0;
-            const useParagraphs = state.settings.preferredProvider === 'puter';
-            const blocks = raw.split(/\n\n+/);
-            blocks.forEach(block => {
-                if (block.startsWith('#')) {
-                    const text = block.replace(/^#+\s*/, ''); state.textChunks.push(text);
-                    htmlOutput += `<h2 id="chunk-${chunkCounter}" class="chunk" onclick="skipTo(${chunkCounter})">${text}</h2>`; chunkCounter++;
-                } else {
-                    htmlOutput += '<p>';
-                    if (useParagraphs) {
-                        if(block.length < 800) {
-                            state.textChunks.push(block); htmlOutput += `<span id="chunk-${chunkCounter}" class="chunk" onclick="skipTo(${chunkCounter})">${block}</span>`; chunkCounter++;
-                        } else {
-                            const sents = block.match(/[^.!?]+[.!?]+["']?|[^.!?]+$/g) || [block];
-                            sents.forEach(s => { if(s.trim()){ state.textChunks.push(s.trim()); htmlOutput += `<span id="chunk-${chunkCounter}" class="chunk" onclick="skipTo(${chunkCounter})">${s.trim()} </span>`; chunkCounter++; } });
-                        }
-                    } else {
-                        const sents = block.match(/[^.!?]+[.!?]+["']?|[^.!?]+$/g) || [block];
-                        sents.forEach(s => { if(s.trim()){ state.textChunks.push(s.trim()); htmlOutput += `<span id="chunk-${chunkCounter}" class="chunk" onclick="skipTo(${chunkCounter})">${s.trim()} </span>`; chunkCounter++; } });
-                    }
-                    htmlOutput += '</p>';
+            saveToLibrary(raw); cleanupAudio();
+            state.textChunks = []; els.readerDisplay.innerHTML = ''; const frag = document.createDocumentFragment();
+            let chunkCounter = 0; 
+
+            // 1. Split paragraphs
+            const paragraphs = raw.split(/\n\n+/);
+
+            paragraphs.forEach(para => {
+                const p = document.createElement('div');
+                p.className = 'paragraph-block';
+                
+                // MARKDOWN DETECTION
+                if (para.startsWith('#')) {
+                    if(para.startsWith('# ')) p.className += ' block-header block-h1';
+                    else if(para.startsWith('## ')) p.className += ' block-header block-h2';
+                    else p.className += ' block-header block-h3';
+                    para = para.replace(/^#+\s*/, '');
+                } else if (para.startsWith('> ')) {
+                    p.className += ' block-quote';
+                    para = para.replace(/^> \s*/, '');
+                } else if (para.match(/^[-*] /)) {
+                    p.className += ' block-list-item';
+                    const bullet = document.createElement('span');
+                    bullet.className = 'list-bullet';
+                    bullet.textContent = '•';
+                    p.appendChild(bullet);
+                    para = para.replace(/^[-*] \s*/, '');
                 }
+
+                // 2. Split sentence content
+                const sentences = para.match(/[^.!?;\n]+[.!?;\n]+["']?|[^.!?;\n]+$/g) || [para];
+
+                sentences.forEach(sentence => {
+                    const trimmedS = sentence.trim();
+                    if(trimmedS) {
+                        state.textChunks.push(trimmedS);
+                        
+                        const span = document.createElement('span');
+                        span.id = `chunk-${chunkCounter}`;
+                        span.className = 'sentence-chunk'; 
+                        
+                        // Words inside for highlighting
+                        const words = trimmedS.split(/\s+/);
+                        span.innerHTML = words.map(w => `<span>${w} </span>`).join('');
+                        
+                        const c = chunkCounter;
+                        span.onclick = (e) => { e.stopPropagation(); window.skipTo(c); };
+                        
+                        p.appendChild(span);
+                        chunkCounter++;
+                    }
+                });
+                frag.appendChild(p);
             });
-            els.readerDisplay.innerHTML = htmlOutput; state.currentChunkIndex = 0; state.audioCache = {};
-            if(state.textChunks.length > 0) setReaderMode(true); updateUI();
+            els.readerDisplay.appendChild(frag); state.currentChunkIndex = 0; if(state.textChunks.length > 0) setReaderMode(true); updateUI();
         }
 
-        async function fetchPuterTTS(text) {
-            if(typeof puter === 'undefined') throw new Error("Puter lib not loaded");
-            try { const a = await puter.ai.txt2speech(text, { engine: 'neural', voice: state.settings.voice }); return a; }
-            catch(e) { if(typeof e==='object' && e.code==='insufficient_funds') throw new Error("PUTER_QUOTA"); throw e; }
-        }
         async function fetchGeminiTTS(text) {
             if(!state.apiKey) throw new Error("No API Key");
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${state.apiKey}`;
             const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text}]}], generationConfig:{responseModalities:["AUDIO"], speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:state.settings.voice}}}}})});
             if(!res.ok) { if(res.status===429) throw new Error("QUOTA_EXCEEDED"); throw new Error(await res.text()); }
-            const d = await res.json(); const b = atob(d.candidates[0].content.parts[0].inlineData.data);
+            const d = await res.json();
+            const b = atob(d.candidates[0].content.parts[0].inlineData.data);
             const len=b.length; const u=new Uint8Array(len); for(let i=0; i<len; i++) u[i]=b.charCodeAt(i);
             const wav=new Uint8Array(44+len); const v=new DataView(wav.buffer);
             const s=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i))}; s(0,'RIFF');v.setUint32(4,36+len,true);s(8,'WAVE');s(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,24000,true);v.setUint32(28,48000,true);v.setUint16(32,2,true);v.setUint16(34,16,true);s(36,'data');v.setUint32(40,len,true);wav.set(u,44);
             return new Audio(URL.createObjectURL(new Blob([wav],{type:'audio/wav'})));
         }
+
         async function smartFetch(text) {
-            if(state.fallbackMode) return null;
             if(state.settings.preferredProvider === 'puter') {
-                try { return await fetchPuterTTS(text); } 
-                catch(e) { if(e.message==="PUTER_QUOTA") toast("Puter Quota. Using System.", "neutral"); state.fallbackMode=true; return null; }
+                try { return await PuterManager.fetchTTS(text); } catch(e) { 
+                    if(e.message === "AUTH_REQUIRED") toast("Log in to Puter first!", "error");
+                    else if(e.message === "PUTER_QUOTA") { toast("Puter Funds Empty. Switching to Gemini.", "neutral"); state.settings.preferredProvider = 'gemini'; updateBadge(); if(!state.apiKey) { toast("Gemini Key needed to continue!", "error"); return null; } return await smartFetch(text); }
+                    else toast("Puter Error: " + e.message, "error");
+                    return null; 
+                }
             }
             try { return await fetchGeminiTTS(text); }
-            catch(e) { if(e.message.includes("QUOTA")) { toast("Gemini Quota. Using Puter.", "neutral"); state.settings.preferredProvider='puter'; updateBadge(); try { return await fetchPuterTTS(text); } catch(er){state.fallbackMode=true; return null;} } throw e; }
+            catch(e) { if(e.message.includes("QUOTA")) { toast("Gemini Quota. Switching.", "neutral"); state.settings.preferredProvider='puter'; try { return await PuterManager.fetchTTS(text); } catch(er){ return null;} } throw e; }
+        }
+
+        function clearHighlights() {
+            document.querySelectorAll('.sentence-chunk.active').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.paragraph-block.active-context').forEach(el => el.classList.remove('active-context'));
+            document.querySelectorAll('.word-active').forEach(el => el.classList.remove('word-active'));
         }
 
         async function playChunk(idx) {
             if(idx<0 || idx>=state.textChunks.length) { stopPlayback(); return; }
-            const pid = state.playbackId; state.currentChunkIndex = idx; updateUI();
-            const el = document.getElementById(`chunk-${idx}`); if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
-            if(state.fallbackMode) { updateBadge(); playSystemTTS(state.textChunks[idx]); return; }
+            
+            clearHighlights();
+            cancelAnimationFrame(state.wordHighlightFrame);
+
+            const pid = state.playbackId; state.currentChunkIndex = idx;
+            const el = document.getElementById(`chunk-${idx}`); const text = state.textChunks[idx];
+            
+            if(el && els.readerDisplay) {
+                const parentP = el.closest('.paragraph-block');
+                if(parentP) parentP.classList.add('active-context');
+                el.classList.add('active'); // TURNS TEXT WHITE
+                ScrollEngine.setTarget(el);
+            }
+            updateUI(); 
+
             if(!state.audioCache[idx]) {
                 setLoading(true);
-                try { const a = await smartFetch(state.textChunks[idx]); if(state.playbackId!==pid)return; if(!a) { updateBadge(); playSystemTTS(state.textChunks[idx]); setLoading(false); return; } state.audioCache[idx]=a; }
-                catch(e) { if(state.playbackId===pid) { setLoading(false); toast("Error fetching audio", "error"); console.error(e); } return; }
+                try { const a = await smartFetch(text); if(state.playbackId!==pid) return; if(!a) { setLoading(false); stopPlayback(); return; } state.audioCache[idx]=a; }
+                catch(e) { if(state.playbackId===pid) { setLoading(false); console.error(e); stopPlayback(); } return; }
                 setLoading(false);
             }
+            
             if(state.playbackId!==pid || !state.isPlaying) return;
             if(state.currentAudio) { state.currentAudio.pause(); state.currentAudio.currentTime=0; }
+            
             const audio = state.audioCache[idx]; state.currentAudio = audio; audio.playbackRate = state.settings.speed;
-            startVisualizer();
-            try { await audio.play(); } catch(e){ console.warn("Play blocked", e); }
-            audio.onended = () => { stopVisualizer(); if(state.isPlaying && state.playbackId===pid) playChunk(idx+1); };
-            if(state.settings.preferredProvider==='puter') { for(let i=1; i<=4; i++) preloadChunk(idx+i); } else { preloadChunk(idx+1); }
-        }
-
-        function playSystemTTS(text) {
-            const pid = state.playbackId; if(!state.synth) return; if(state.synth.speaking) state.synth.cancel();
-            const u = new SpeechSynthesisUtterance(text); u.rate = state.settings.speed;
-            const v = state.systemVoices.find(v=>v.name===state.settings.systemVoiceName); if(v) u.voice=v;
-            startVisualizer(); u.onend = () => { stopVisualizer(); if(state.isPlaying && state.playbackId===pid) playChunk(state.currentChunkIndex+1); };
-            state.synth.speak(u);
-        }
-        async function preloadChunk(i) { if(i<state.textChunks.length && !state.audioCache[i] && !state.fallbackMode) { try{const a=await smartFetch(state.textChunks[i]);if(a)state.audioCache[i]=a;}catch(e){} } }
-        
-        function startVisualizer() { stopVisualizer(); state.visualizerInterval = setInterval(()=>document.querySelectorAll('.v-bar').forEach(b=>b.style.height=(Math.random()*24+4)+'px'), 80); }
-        function stopVisualizer() { if(state.visualizerInterval) clearInterval(state.visualizerInterval); document.querySelectorAll('.v-bar').forEach(b=>b.style.height='4px'); }
-        
-        function updateUI() {
-            // Updated Custom Pause Icon (Thick parallel lines in a capsule)
-            const playSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" class="w-8 h-8 ml-1 text-black"><path d="M5 3l14 9-14 9V3z"/></svg>`;
             
-            // Custom Pause: Two separate thick rounded rectangles
-            const pauseSVG = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" class="w-8 h-8 text-black">
-                <rect x="6" y="4" width="4" height="16" rx="2" fill="currentColor" />
-                <rect x="14" y="4" width="4" height="16" rx="2" fill="currentColor" />
-            </svg>`;
+            // --- FIXED WORD HIGHLIGHT LOGIC (SPEED AGNOSTIC) ---
+            const onAudioStart = () => {
+                if(state.playbackId !== pid) return;
+                
+                if(el && audio.duration && isFinite(audio.duration)) {
+                    const wordSpans = el.querySelectorAll('span');
+                    let totalSyllables = 0; const wordWeights = [];
+                    wordSpans.forEach(span => {
+                        const wText = span.innerText; let sCount = countSyllables(wText);
+                        if(wText.length <= 3) sCount *= 0.8;
+                        if(wText[0] === wText[0].toUpperCase()) sCount *= 1.1;
+                        if (wText.includes(',') || wText.includes(';')) sCount += 3;
+                        else if (wText.includes('.') || wText.includes('!') || wText.includes('?')) sCount += 6;
+                        wordWeights.push(sCount); totalSyllables += sCount;
+                    });
 
-            if (els.playIconContainer) {
-                if (state.isPlaying) {
-                     els.playIconContainer.innerHTML = pauseSVG;
-                } else {
-                     els.playIconContainer.innerHTML = playSVG;
+                    // FIX: USE RAW DURATION (Browser handles speed scaling for currentTime)
+                    const durationMs = audio.duration * 1000; 
+                    const msPerSyllable = durationMs / totalSyllables;
+                    
+                    const timeline = []; let accumulatedTime = 0;
+                    wordSpans.forEach((span, i) => {
+                        const wDur = wordWeights[i] * msPerSyllable;
+                        // Highlight window (Start -> End)
+                        timeline.push({ start: accumulatedTime - 50, end: accumulatedTime + wDur - 50, el: span });
+                        accumulatedTime += wDur;
+                    });
+
+                    const tick = () => {
+                        if(state.playbackId !== pid || audio.paused) return;
+                        // currentTime is sped up by browser, so it matches raw duration map
+                        const currentTime = (audio.currentTime * 1000);
+                        const active = timeline.find(t => currentTime >= t.start && currentTime < t.end);
+                        if(active) {
+                            const currentActive = el.querySelector('.word-active');
+                            if(currentActive !== active.el) { if(currentActive) currentActive.classList.remove('word-active'); active.el.classList.add('word-active'); }
+                        }
+                        state.wordHighlightFrame = requestAnimationFrame(tick);
+                    };
+                    state.wordHighlightFrame = requestAnimationFrame(tick);
                 }
-            }
-            if(els.playIconContainer && els.playLoader) {
-                els.playIconContainer.classList.remove('hidden');
-                els.playLoader.classList.add('hidden');
-            }
+            };
 
-            if(els.status) els.status.innerText = state.isPlaying ? 'PLAYING' : 'READY';
-            if(els.chunkInfo) els.chunkInfo.innerText = `${state.currentChunkIndex+1} / ${state.textChunks.length}`;
-            if(els.progressBar) els.progressBar.style.width = state.textChunks.length > 0 ? ((state.currentChunkIndex/state.textChunks.length)*100)+'%' : '0%';
-            updateBadge();
+            if (audio.readyState >= 1) { onAudioStart(); } else { audio.addEventListener('loadedmetadata', onAudioStart, { once: true }); }
+            try { await audio.play(); } catch(e){ console.warn("Play blocked", e); }
+            audio.onended = () => { cancelAnimationFrame(state.wordHighlightFrame); if(state.isPlaying && state.playbackId===pid) playChunk(idx+1); };
+            preloadChunk(idx+1); preloadChunk(idx+2);
+        }
+
+        async function preloadChunk(i) { if(i<state.textChunks.length && !state.audioCache[i] && !state.fallbackMode) { try{const a=await smartFetch(state.textChunks[i]);if(a)state.audioCache[i]=a;}catch(e){} } }
+
+        function stopPlayback() { state.isPlaying=false; state.playbackId++; if(state.currentAudio) state.currentAudio.pause(); cancelAnimationFrame(state.wordHighlightFrame); updateUI(); setLoading(false); }
+        function togglePlay() { 
+            if(state.textChunks.length===0) processText();
+            if(state.textChunks.length===0) return toast("No text", "error"); 
+            if(state.isPlaying) { stopPlayback(); } 
+            else { 
+                state.isPlaying=true; state.playbackId++; 
+                if(!state.audioCtx) { try { state.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
+                if(state.audioCtx && state.audioCtx.state === 'suspended') state.audioCtx.resume();
+                setReaderMode(true); playChunk(state.currentChunkIndex); updateUI(); 
+            } 
+        }
+
+        function selectVoice(v) { state.settings.voice=v.name; setEngine(v.provider); toast(`Voice: ${v.name}`, "success"); state.audioCache={}; renderVoiceGrid(); if(state.isPlaying) { stopPlayback(); setTimeout(togglePlay, 200); } }
+
+        function setEngine(e) {
+            state.settings.preferredProvider=e; state.fallbackMode=false; updateBadge();
+            if(e==='gemini') { 
+                if(els.engineGemini) els.engineGemini.className="px-4 py-2 rounded-lg text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/50 transition-all active:scale-95";
+                if(els.enginePuter) els.enginePuter.className="px-4 py-2 rounded-lg text-xs font-bold text-white/50 hover:text-white transition-all active:scale-95";
+            } else { 
+                if(els.enginePuter) els.enginePuter.className="px-4 py-2 rounded-lg text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/50 transition-all active:scale-95 shadow-sm";
+                if(els.engineGemini) els.engineGemini.className="px-4 py-2 rounded-lg text-xs font-bold text-white/50 hover:text-white transition-all active:scale-95";
+            }
+            processText();
+        }
+        
+        function renderVoiceGrid() {
+            if (!els.voiceGrid) return;
+            els.voiceGrid.innerHTML = '';
+            VOICES.forEach(v => {
+                const card = document.createElement('div'); const isSelected = state.settings.voice === v.name;
+                card.className = `glass-card p-4 rounded-xl cursor-pointer hover:bg-white/5 flex flex-col gap-2 ${isSelected ? 'active' : ''}`;
+                let providerBadge = v.provider === 'gemini' ? `<span class="text-[10px] text-blue-400 bg-blue-400/10 px-1.5 rounded border border-blue-400/20">Gemini</span>` : `<span class="text-[10px] text-green-400 bg-green-400/10 px-1.5 rounded border border-green-400/20">Puter</span>`;
+                card.innerHTML = `<div class="flex justify-between items-center"><span class="font-semibold text-sm ${isSelected ? 'text-white' : 'text-white/70'}">${v.label}</span>${providerBadge}</div><div class="flex justify-between items-end"><p class="text-xs text-white/50 w-3/4">${v.desc}</p><div class="px-2 py-0.5 rounded-full text-[10px] bg-white/10 border border-white/10 text-white/70">${v.tone}</div></div>`;
+                card.onclick = () => selectVoice(v);
+                els.voiceGrid.appendChild(card);
+            });
+        }
+
+        function updateUI() {
+            if (els.playIconContainer) {
+                els.playIconContainer.innerHTML = state.isPlaying 
+                ? `<i data-lucide="pause" class="w-5 h-5 fill-current"></i>` 
+                : `<i data-lucide="play" class="w-5 h-5 fill-current"></i>`;
+                if(typeof lucide !== 'undefined') lucide.createIcons();
+            }
+            if(els.playIconContainer && els.playLoader) { els.playIconContainer.classList.remove('hidden'); els.playLoader.classList.add('hidden'); }
             
-            // Sentence Highlighting
-            document.querySelectorAll('.chunk').forEach(el => el.classList.remove('active'));
-            const activeEl = document.getElementById(`chunk-${state.currentChunkIndex}`); 
-            if(activeEl) activeEl.classList.add('active');
+            if(els.chunkInfo) els.chunkInfo.innerText = `${state.currentChunkIndex+1}/${state.textChunks.length}`;
+            if(els.progressBar) els.progressBar.style.width = state.textChunks.length > 0 ? ((state.currentChunkIndex/state.textChunks.length)*100)+'%' : '0%';
+            
+            updateBadge(); 
+        }
 
-            // Paragraph Highlighting
-            document.querySelectorAll('#reader-display p').forEach(p => p.classList.remove('active-paragraph'));
-            if(activeEl) {
-                const parentP = activeEl.closest('p');
-                if(parentP) parentP.classList.add('active-paragraph');
+        function updateBadge() {
+            const dot = document.getElementById('player-engine-dot');
+            const name = document.getElementById('player-engine-name');
+            if(!dot || !name) return;
+
+            if(state.settings.preferredProvider === 'gemini') {
+                dot.className = "engine-dot bg-blue-400 text-blue-400";
+                name.innerText = "GEMINI";
+                name.className = "text-[10px] font-bold tracking-wider uppercase text-blue-400/80";
+            } else {
+                dot.className = "engine-dot bg-green-400 text-green-400";
+                name.innerText = "PUTER";
+                name.className = "text-[10px] font-bold tracking-wider uppercase text-green-400/80";
             }
         }
 
@@ -660,54 +721,53 @@
         }
 
         function setReaderMode(b) { 
-            if(els.mainText) els.mainText.classList.toggle('hidden', b); 
+            if(els.mainText) els.mainText.classList.toggle('hidden', b);
             if(els.readerDisplay) els.readerDisplay.classList.toggle('hidden', !b); 
             if(els.editToggleBtn) els.editToggleBtn.classList.toggle('hidden', !b); 
             if(els.scrapeBtn) els.scrapeBtn.classList.toggle('hidden', b); 
         }
-        function updateBadge() { if(!els.engineBadge)return; if(state.fallbackMode){els.engineBadge.className="engine-badge badge-system";els.engineBadge.innerText="SYSTEM";} else if(state.settings.preferredProvider==='gemini'){els.engineBadge.className="engine-badge badge-gemini";els.engineBadge.innerText="GEMINI AI";} else{els.engineBadge.className="engine-badge badge-puter";els.engineBadge.innerText="PUTER AI";} }
-        
-        function stopPlayback() { state.isPlaying=false; state.playbackId++; if(state.currentAudio) state.currentAudio.pause(); if(state.synth) state.synth.cancel(); stopVisualizer(); updateUI(); setLoading(false); }
-        function togglePlay() { 
-            if(state.textChunks.length===0) processText(); 
-            if(state.textChunks.length===0) return toast("No text", "error"); 
-            if(state.isPlaying) {
-                stopPlayback(); 
-            } else { 
-                state.isPlaying=true; state.playbackId++; 
-                if(!state.audioCtx) { try { state.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
-                if(state.audioCtx && state.audioCtx.state === 'suspended') state.audioCtx.resume();
-                setReaderMode(true); 
-                playChunk(state.currentChunkIndex); 
-                updateUI(); 
-            } 
-        }
 
-        function renderVoiceGrid() {
-            if (!els.voiceGrid) return; els.voiceGrid.innerHTML = '';
-            VOICES.forEach(v => {
-                const card = document.createElement('div'); const isSelected = state.settings.voice === v.name;
-                card.className = `glass-card p-4 rounded-xl cursor-pointer hover:bg-white/5 flex flex-col gap-2 ${isSelected ? 'active' : ''}`;
-                let providerBadge = v.provider === 'gemini' ? `<span class="text-[10px] text-blue-400 bg-blue-400/10 px-1.5 rounded border border-blue-400/20">Gemini</span>` : `<span class="text-[10px] text-green-400 bg-green-400/10 px-1.5 rounded border border-green-400/20">Puter</span>`;
-                card.innerHTML = `<div class="flex justify-between items-center"><span class="font-semibold text-sm ${isSelected ? 'text-white' : 'text-white/70'}">${v.label}</span>${providerBadge}</div><div class="flex justify-between items-end"><p class="text-xs text-white/50 w-3/4">${v.desc}</p><div class="px-2 py-0.5 rounded-full text-[10px] bg-white/10 border border-white/10 text-white/70">${v.tone}</div></div>`;
-                card.onclick = () => selectVoice(v); els.voiceGrid.appendChild(card);
-            });
-        }
+        // --- 6. INITIALIZATION (RUNS LAST) ---
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => { const loader = document.getElementById('app-loader'); if(loader) { loader.classList.add('fade-out'); setTimeout(() => { loader.remove(); const readerView = document.getElementById('view-reader'); if(readerView) readerView.classList.add('animate-enter'); }, 500); } }, 500);
+            els = {
+                apiKey: document.getElementById('api-key-input'), mobileApiKey: document.getElementById('mobile-api-key'),
+                mainText: document.getElementById('main-text'), readerDisplay: document.getElementById('reader-display'), urlInput: document.getElementById('url-input'),
+                playBtn: document.getElementById('play-btn-circle'), playIconContainer: document.getElementById('play-icon-container'), playLoader: document.getElementById('play-loader'),
+                prevBtn: document.getElementById('prev-btn'), nextBtn: document.getElementById('next-btn'),
+                speedSlider: document.getElementById('speed-slider'), speedVal: document.getElementById('speed-val'),
+                status: document.getElementById('status-text'), chunkInfo: document.getElementById('chunk-info'),
+                toaster: document.getElementById('toaster'), toasterMsg: document.getElementById('toaster-msg'),
+                scrapeBtn: document.getElementById('scrape-btn'), editToggleBtn: document.getElementById('edit-toggle-btn'),
+                sidebar: document.getElementById('sidebar'), menuToggle: document.getElementById('menu-toggle'), sidebarOverlay: document.getElementById('sidebar-overlay'), closeSidebar: document.getElementById('close-sidebar'),
+                btnSummarize: document.getElementById('btn-summarize'), btnSimplify: document.getElementById('btn-simplify'),
+                progressBar: document.getElementById('progress-bar'), voiceGrid: document.getElementById('voice-grid'), systemVoiceSelect: document.getElementById('system-voice-select'),
+                engineGemini: document.getElementById('engine-gemini'), enginePuter: document.getElementById('engine-puter'), puterStatus: document.getElementById('puter-status'),
+                authControls: document.getElementById('auth-controls'), libraryList: document.getElementById('library-list'), btnInstallHeader: document.getElementById('btn-install-header')
+            };
+            if(typeof lucide !== 'undefined') lucide.createIcons();
 
-        function selectVoice(v) { state.settings.voice=v.name; setEngine(v.provider); toast(`Voice: ${v.name}`, "success"); state.audioCache={}; renderVoiceGrid(); if(state.isPlaying) { stopPlayback(); setTimeout(togglePlay, 200); } }
+            if(els.engineGemini) els.engineGemini.onclick = () => selectVoice(VOICES.find(v => v.provider === 'gemini'));
+            if(els.enginePuter) els.enginePuter.onclick = () => selectVoice(VOICES.find(v => v.provider === 'puter'));
 
-        function setEngine(e) {
-            state.settings.preferredProvider=e; state.fallbackMode=false; updateBadge();
-            if(e==='gemini') { 
-                if(els.engineGemini) els.engineGemini.className="px-4 py-2 rounded-lg text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/50 transition-all active:scale-95"; 
-                if(els.enginePuter) els.enginePuter.className="px-4 py-2 rounded-lg text-xs font-bold text-white/50 hover:text-white transition-all active:scale-95"; 
-            } else { 
-                if(els.enginePuter) els.enginePuter.className="px-4 py-2 rounded-lg text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/50 transition-all active:scale-95 shadow-sm"; 
-                if(els.engineGemini) els.engineGemini.className="px-4 py-2 rounded-lg text-xs font-bold text-white/50 hover:text-white transition-all active:scale-95"; 
-            }
-            processText();
-        }
-
+            if(els.playBtn) els.playBtn.onclick = togglePlay;
+            if(els.prevBtn) els.prevBtn.onclick = () => { if(state.currentChunkIndex>0) { stopPlayback(); state.isPlaying=true; playChunk(state.currentChunkIndex-1); } };
+            if(els.nextBtn) els.nextBtn.onclick = () => { if(state.currentChunkIndex<state.textChunks.length-1) { stopPlayback(); state.isPlaying=true; playChunk(state.currentChunkIndex+1); } };
+            if(els.speedSlider) els.speedSlider.oninput = (e) => { const v = parseFloat(e.target.value); state.settings.speed=v; if(els.speedVal) els.speedVal.innerText=v.toFixed(1)+'x'; if(state.currentAudio) state.currentAudio.playbackRate=v; };
+            if(els.editToggleBtn) els.editToggleBtn.onclick = () => { setReaderMode(false); stopPlayback(); };
+            if(els.scrapeBtn) els.scrapeBtn.onclick = async () => { if(!els.urlInput.value) return toast("Enter URL", "error"); els.scrapeBtn.innerHTML = `<div class="loader w-4 h-4 border-white/30 border-l-white"></div>`; try { const res = await fetch(`https://r.jina.ai/${els.urlInput.value}`); if(!res.ok) throw new Error("Fetch failed"); const text = await res.text(); if(text.length<100) throw new Error("Blocked/Empty"); els.mainText.value = text; processText(); toast("Imported", "success"); } catch(e) { toast("Error: "+e.message, "error"); } finally { els.scrapeBtn.innerHTML = `<i data-lucide="download-cloud" class="w-4 h-4 text-white"></i>`; if(typeof lucide!=='undefined') lucide.createIcons(); } };
+            if(els.menuToggle) els.menuToggle.onclick = () => { if(els.sidebar) els.sidebar.classList.remove('translate-x-full'); if(els.sidebarOverlay) els.sidebarOverlay.classList.remove('hidden'); };
+            const closeMenu = () => { if(els.sidebar) els.sidebar.classList.add('translate-x-full'); if(els.sidebarOverlay) els.sidebarOverlay.classList.add('hidden'); };
+            if(els.closeSidebar) els.closeSidebar.onclick = closeMenu; if(els.sidebarOverlay) els.sidebarOverlay.onclick = closeMenu;
+            const syncKey = (e) => { state.apiKey = e.target.value; localStorage.setItem("gemini_key", state.apiKey); if(els.mobileApiKey) els.mobileApiKey.value=state.apiKey; };
+            if(els.mobileApiKey) els.mobileApiKey.oninput = syncKey; if(els.mobileApiKey) els.mobileApiKey.value = state.apiKey;
+            window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); state.deferredPrompt = e; if(els.btnInstallHeader) els.btnInstallHeader.classList.add('visible'); });
+            if(els.btnInstallHeader) els.btnInstallHeader.onclick = () => { if(els.btnInstallHeader) els.btnInstallHeader.classList.remove('visible'); if (state.deferredPrompt) { state.deferredPrompt.prompt(); state.deferredPrompt = null; } };
+            
+            ScrollEngine.init(); 
+            setTimeout(PuterManager.checkAuth, 1000);
+            renderVoiceGrid(); renderLibrary(); updateUI();
+        });
     </script>
 </body>
 </html>
