@@ -9,11 +9,12 @@
     <meta name="theme-color" content="#000000">
     <title>Gemini Reader</title>
 
+    <!-- PWA Setup - Fixed for Instant Updates -->
     <link rel="manifest" id="manifest-placeholder">
     <script>
         try {
             const manifest = {
-                "name": "Gemini Reader",
+                "name": "Gemini Reader v2",
                 "short_name": "GeminiReader",
                 "start_url": ".",
                 "display": "standalone",
@@ -27,10 +28,18 @@
             };
             const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
             document.querySelector('#manifest-placeholder').setAttribute('href', URL.createObjectURL(blob));
+            
             if ('serviceWorker' in navigator) {
-                const swCode = `self.addEventListener('fetch', () => {});`;
+                // Force SW to update and claim clients immediately to fix "Old Version" issue
+                const swCode = `
+                    self.addEventListener('install', (e) => self.skipWaiting());
+                    self.addEventListener('activate', (e) => self.clients.claim());
+                    self.addEventListener('fetch', () => {});
+                `;
                 const swUrl = URL.createObjectURL(new Blob([swCode], {type: 'application/javascript'}));
-                navigator.serviceWorker.register(swUrl).catch(e => console.log("SW Info:", e.message));
+                navigator.serviceWorker.register(swUrl)
+                    .then(reg => reg.update()) // Check for updates immediately
+                    .catch(e => console.log("SW Info:", e.message));
             }
         } catch(e) { console.log("PWA setup skipped"); }
     </script>
@@ -108,10 +117,9 @@
             word-spacing: 0.1em;
             color: rgba(255, 255, 255, 0.4); 
             padding-bottom: 60vh; 
-            /* CRITICAL FIX: Disable CSS smooth scroll to let Physics Engine work properly */
+            /* CRITICAL: Disable CSS smooth scroll to let JS Physics work */
             scroll-behavior: auto !important;
             position: relative;
-            /* Improve scrolling performance */
             will-change: scroll-position;
         }
 
@@ -332,9 +340,11 @@
             const syllables = word.match(/[aeiouy]{1,2}/g); return syllables ? syllables.length : 1;
         }
 
-        // --- 3. SCROLL ENGINE (STABILIZED) ---
+        // --- 3. SCROLL ENGINE (SMOOTH LERP) ---
+        // Replaced physics spring with simple Lerp for non-bouncy smoothness
         const ScrollEngine = {
-            config: { k: 0.04, d: 0.92, epsilon: 0.5 }, // Gentler springs
+            epsilon: 0.5,
+            factor: 0.08, // Lower factor = smoother, slower catch-up
             init() {
                 const container = document.getElementById('reader-display');
                 if(!container) return;
@@ -345,10 +355,11 @@
                         clearTimeout(manualTimeout);
                         manualTimeout = setTimeout(() => {
                             state.scroll.manualOverride = false;
+                            // Reset target to current position to prevent jump
                             state.scroll.target = container.scrollTop;
                             state.scroll.current = container.scrollTop;
                             ScrollEngine.wake();
-                        }, 2500);
+                        }, 2000);
                     }, { passive: true });
                 });
                 this.loop();
@@ -360,10 +371,15 @@
                 const viewHeight = container.clientHeight;
                 const elTop = el.offsetTop; 
                 let targetPos;
+                
+                // Center logic
                 if (elHeight < viewHeight) targetPos = elTop - (viewHeight / 2) + (elHeight / 2);
-                else targetPos = elTop - (viewHeight * 0.2);
+                else targetPos = elTop - (viewHeight * 0.2); // Top-bias for long text
+                
+                // Bounds check
                 const maxScroll = container.scrollHeight - viewHeight;
                 targetPos = Math.max(0, Math.min(targetPos, maxScroll));
+                
                 state.scroll.target = targetPos;
                 this.wake();
             },
@@ -376,12 +392,16 @@
                     requestAnimationFrame(() => this.loop());
                     return;
                 }
-                const force = (state.scroll.target - state.scroll.current) * this.config.k;
-                state.scroll.velocity = (state.scroll.velocity + force) * this.config.d;
-                state.scroll.current += state.scroll.velocity;
+                
+                // LERP (Linear Interpolation) - No Bounce
+                const diff = state.scroll.target - state.scroll.current;
+                state.scroll.current += diff * this.factor;
+
                 const container = document.getElementById('reader-display');
                 if (container) container.scrollTop = state.scroll.current;
-                if (Math.abs(state.scroll.target - state.scroll.current) < this.config.epsilon && Math.abs(state.scroll.velocity) < 0.1) {
+
+                // Sleep if close enough
+                if (Math.abs(diff) < this.epsilon) {
                     state.scroll.sleeping = true;
                     if(container) container.scrollTop = state.scroll.target;
                 } else {
@@ -564,10 +584,7 @@
 
         async function playChunk(idx) {
             if(idx<0 || idx>=state.textChunks.length) { stopPlayback(); return; }
-            
-            clearHighlights();
-            cancelAnimationFrame(state.wordHighlightFrame);
-
+            clearHighlights(); cancelAnimationFrame(state.wordHighlightFrame);
             const pid = state.playbackId; state.currentChunkIndex = idx;
             const el = document.getElementById(`chunk-${idx}`); const text = state.textChunks[idx];
             
