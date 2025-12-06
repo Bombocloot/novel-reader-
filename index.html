@@ -9,12 +9,16 @@
     <meta name="theme-color" content="#000000">
     <title>Gemini Reader</title>
 
-    <!-- PWA Setup - Fixed for Instant Updates -->
+    <!-- APP LOGO / ICONS (iOS & Browser) -->
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3144/3144456.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3144/3144456.png">
+
+    <!-- PWA Setup -->
     <link rel="manifest" id="manifest-placeholder">
     <script>
         try {
             const manifest = {
-                "name": "Gemini Reader v2",
+                "name": "Gemini Reader",
                 "short_name": "GeminiReader",
                 "start_url": ".",
                 "display": "standalone",
@@ -22,15 +26,25 @@
                 "theme_color": "#000000",
                 "orientation": "portrait-primary",
                 "icons": [
-                    { "src": "https://cdn-icons-png.flaticon.com/512/3063/3063228.png", "sizes": "192x192", "type": "image/png" },
-                    { "src": "https://cdn-icons-png.flaticon.com/512/3063/3063228.png", "sizes": "512x512", "type": "image/png" }
+                    { 
+                        "src": "https://cdn-icons-png.flaticon.com/512/3144/3144456.png", 
+                        "sizes": "192x192", 
+                        "type": "image/png",
+                        "purpose": "any maskable"
+                    },
+                    { 
+                        "src": "https://cdn-icons-png.flaticon.com/512/3144/3144456.png", 
+                        "sizes": "512x512", 
+                        "type": "image/png",
+                        "purpose": "any maskable" 
+                    }
                 ]
             };
             const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
             document.querySelector('#manifest-placeholder').setAttribute('href', URL.createObjectURL(blob));
             
             if ('serviceWorker' in navigator) {
-                // Force SW to update and claim clients immediately to fix "Old Version" issue
+                // Force SW to update and claim clients immediately
                 const swCode = `
                     self.addEventListener('install', (e) => self.skipWaiting());
                     self.addEventListener('activate', (e) => self.clients.claim());
@@ -38,7 +52,7 @@
                 `;
                 const swUrl = URL.createObjectURL(new Blob([swCode], {type: 'application/javascript'}));
                 navigator.serviceWorker.register(swUrl)
-                    .then(reg => reg.update()) // Check for updates immediately
+                    .then(reg => reg.update())
                     .catch(e => console.log("SW Info:", e.message));
             }
         } catch(e) { console.log("PWA setup skipped"); }
@@ -95,7 +109,11 @@
             backdrop-filter: blur(24px) saturate(180%);
             -webkit-backdrop-filter: blur(24px) saturate(180%);
             border-radius: 9999px;
-            box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(255, 255, 255, 0.05), inset 0 0 40px rgba(0, 0, 0, 0.8);
+            box-shadow: 
+                0 20px 50px -12px rgba(0, 0, 0, 0.9), 
+                inset 0 1px 0 rgba(255, 255, 255, 0.2), 
+                inset 0 -1px 0 rgba(255, 255, 255, 0.05), 
+                inset 0 0 40px rgba(0, 0, 0, 0.8);
             border: 1px solid rgba(255, 255, 255, 0.1);
             z-index: 50;
             display: flex;
@@ -109,61 +127,74 @@
         .view-section { display: none; opacity: 0; height: 100%; flex-direction: column; }
         .view-section.active { display: flex; opacity: 1; }
 
-        /* Reader Display - FIXED SCROLL BEHAVIOR */
         #reader-display { 
             line-height: 2.4; 
             font-size: 1.2rem; 
             letter-spacing: 0.03em;
             word-spacing: 0.1em;
-            color: rgba(255, 255, 255, 0.4); 
+            color: rgba(255, 255, 255, 0.3); 
             padding-bottom: 60vh; 
-            /* CRITICAL: Disable CSS smooth scroll to let JS Physics work */
-            scroll-behavior: auto !important;
+            scroll-behavior: smooth;
             position: relative;
-            will-change: scroll-position;
+        }
+        #reader-display h1 { font-size: 1.8em; font-weight: 800; color: white; margin-top: 1.5em; margin-bottom: 0.8em; padding: 0 16px; }
+        #reader-display h2 { font-size: 1.4em; font-weight: 700; color: white; margin-top: 1.4em; margin-bottom: 0.6em; padding: 0 16px; }
+
+        #reader-display p { 
+            margin-bottom: 2em; 
+            padding: 32px 28px; 
+            border-radius: 28px; 
+            border: 1px solid transparent; 
+            transition: background-color 0.3s ease;
         }
 
-        /* FORMATTING STYLES */
-        .block-header { color: #ffffff; font-weight: 800; margin-top: 2em; margin-bottom: 1em; padding: 0 16px; }
-        .block-h1 { font-size: 1.8em; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5em; }
-        .block-h2 { font-size: 1.5em; }
-        .block-h3 { font-size: 1.25em; color: #e0e0e0; }
-        .block-quote { border-left: 4px solid #A0522D; padding-left: 20px; margin: 1.5em 0; font-style: italic; background: rgba(255,255,255,0.02); }
-        .block-list-item { margin-left: 1em; margin-bottom: 0.5em; display: flex; align-items: flex-start; }
-        .list-bullet { color: #A0522D; margin-right: 10px; font-weight: bold; margin-top: 0.4em; }
+        #reader-display p.active-context { 
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
 
-        .paragraph-block { margin-bottom: 1.5em; padding: 24px 28px; border-radius: 16px; border: 1px solid transparent; transition: background-color 0.3s ease; }
-        .paragraph-block.active-context { background-color: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.1); }
-
+        /* --- FIXED KARAOKE STYLES --- */
         .sentence-chunk { 
             display: inline;
-            transition: color 0.2s ease; 
+            transition: opacity 0.3s ease;
             border-radius: 4px; 
             cursor: pointer; 
-            padding: 2px 0;
-            margin-right: 4px;
-            color: rgba(255, 255, 255, 0.35); 
+            padding: 4px 0;
+            margin-right: 6px;
+            line-height: 2.6; 
+            /* Default State: Visible Dim Gray */
+            color: rgba(255, 255, 255, 0.35);
         }
-        .sentence-chunk:hover { color: rgba(255,255,255,0.8); }
-        .sentence-chunk.active { color: #ffffff !important; opacity: 1; text-shadow: 0 0 10px rgba(255, 255, 255, 0.2); font-weight: normal; }
         
-        .word-active { 
-            background-color: #A0522D !important;
-            color: #ffffff !important;
-            border-radius: 3px;
-            box-shadow: 0 0 0 2px #A0522D; 
-            z-index: 10;
-            position: relative;
+        .sentence-chunk:hover { color: rgba(255,255,255,0.9); }
+
+        /* Active State: Applies the Gradient Magic */
+        .sentence-chunk.active {
+            /* Gradient: White (Active/Past) -> Dim Gray (Future) */
+            background-image: linear-gradient(to right, #ffffff 50%, rgba(255, 255, 255, 0.3) 50%);
+            background-size: 200% 100%;
+            background-position: 100%; /* Start full gray */
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent; /* Text becomes transparent to show gradient */
+            font-weight: normal;
         }
 
         .player-btn { color: rgba(255,255,255,0.6); transition: all 0.2s; padding: 8px; border-radius: 50%; }
         .player-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
         .player-btn:active { transform: scale(0.95); }
 
-        #play-btn-circle { width: 44px; height: 44px; background: #fff; color: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(255,255,255,0.1); transition: transform 0.2s; }
+        #play-btn-circle {
+            width: 44px; height: 44px; background: #fff; color: #000;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 15px rgba(255,255,255,0.1); transition: transform 0.2s;
+        }
         #play-btn-circle:active { transform: scale(0.95); }
+
         .loader { border: 2px solid rgba(0,0,0,0.2); border-left-color: #000; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
         #toaster { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: translateY(-150%); top: 10px; z-index: 100; }
         #toaster.show { transform: translateY(var(--safe-top)); }
         #sidebar { transition: transform 0.3s ease-in-out; padding-bottom: var(--safe-bottom); }
@@ -189,10 +220,21 @@
 
     <header class="glass sticky top-0 z-30 h-16 px-4 flex items-center justify-between border-b border-white/5 shrink-0">
         <div class="flex items-center gap-4">
-            <div class="flex items-center gap-2 cursor-pointer group" onclick="window.switchView('reader')">
-                <i data-lucide="waves" class="text-white w-6 h-6 group-hover:scale-110 transition-transform"></i>
-                <span class="font-bold tracking-wide hidden md:block text-white text-lg">Gemini<span class="text-white/40 font-normal">Reader</span></span>
+            
+            <!-- INTERACTIVE APP LOGO -->
+            <div class="flex items-center gap-3 cursor-pointer group" onclick="window.switchView('reader')">
+                <div class="relative">
+                    <div class="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
+                    <div class="relative flex items-center justify-center w-10 h-10 bg-black border border-white/10 rounded-lg shadow-2xl transform transition-transform duration-300 group-hover:scale-105 group-hover:-rotate-3">
+                        <i data-lucide="waves" class="w-5 h-5 text-white group-hover:text-blue-200 transition-colors"></i>
+                    </div>
+                </div>
+                <div class="flex flex-col justify-center">
+                    <span class="font-bold tracking-wide hidden md:block text-white text-lg leading-none transition-colors group-hover:text-blue-100">Gemini</span>
+                    <span class="text-white/40 font-normal text-xs hidden md:block leading-none group-hover:text-white/70 transition-colors">Reader</span>
+                </div>
             </div>
+
             <nav class="flex bg-white/5 rounded-xl p-1 gap-1">
                 <button onclick="window.switchView('reader')" id="nav-reader" class="nav-btn nav-btn-active px-3 py-2 text-xs rounded-lg transition">Reader</button>
                 <button onclick="window.switchView('library')" id="nav-library" class="nav-btn nav-btn-inactive px-3 py-2 text-xs rounded-lg transition">Library</button>
@@ -321,7 +363,7 @@
             apiKey: localStorage.getItem("gemini_key") || "", isPlaying: false, textChunks: [], currentChunkIndex: 0, playbackId: 0, 
             audioCache: {}, settings: { speed: 1.0, pitch: 0, voice: "Joey", preferredProvider: "puter" },
             currentAudio: null, view: 'reader', fallbackMode: false, puterUser: null,
-            library: savedLib, deferredPrompt: null, wordHighlightFrame: null,
+            library: savedLib, deferredPrompt: null, karaokeFrame: null,
             scroll: { current: 0, target: 0, velocity: 0, sleeping: true, manualOverride: false }
         };
         let els = {}; let manualTimeout = null;
@@ -462,7 +504,7 @@
 
         window.loadItem = function(id) { const item = state.library.find(i => i.id === id); if(item && els.mainText) { els.mainText.value = item.text; processText(); window.switchView('reader'); toast("Loaded", "success"); } };
         window.deleteItem = function(id) { state.library = state.library.filter(i => i.id !== id); localStorage.setItem('gemini_library', JSON.stringify(state.library)); renderLibrary(); toast("Deleted", "neutral"); };
-        window.skipTo = function(i) { if(i !== state.currentChunkIndex) { state.playbackId++; state.isPlaying=false; if(state.currentAudio) state.currentAudio.pause(); cancelAnimationFrame(state.wordHighlightFrame); setTimeout(() => { state.isPlaying=true; playChunk(i); }, 50); } };
+        window.skipTo = function(i) { if(i !== state.currentChunkIndex) { state.playbackId++; state.isPlaying=false; if(state.currentAudio) state.currentAudio.pause(); cancelAnimationFrame(state.karaokeFrame); setTimeout(() => { state.isPlaying=true; playChunk(i); }, 50); } };
 
         function renderLibrary() {
             if(!els.libraryList) return;
@@ -584,12 +626,12 @@
 
         async function playChunk(idx) {
             if(idx<0 || idx>=state.textChunks.length) { stopPlayback(); return; }
-            clearHighlights(); cancelAnimationFrame(state.wordHighlightFrame);
+            clearHighlights(); cancelAnimationFrame(state.karaokeFrame);
             const pid = state.playbackId; state.currentChunkIndex = idx;
             const el = document.getElementById(`chunk-${idx}`); const text = state.textChunks[idx];
             
             if(el && els.readerDisplay) {
-                const parentP = el.closest('.paragraph-block');
+                const parentP = el.closest('div'); // Paragraph div
                 if(parentP) parentP.classList.add('active-context');
                 el.classList.add('active'); // TURNS TEXT WHITE
                 ScrollEngine.setTarget(el);
@@ -608,58 +650,42 @@
             
             const audio = state.audioCache[idx]; state.currentAudio = audio; audio.playbackRate = state.settings.speed;
             
-            // --- FIXED WORD HIGHLIGHT LOGIC (SPEED AGNOSTIC) ---
-            const onAudioStart = () => {
+            // --- KARAOKE GRADIENT ANIMATION (WITH SPEED FIX) ---
+            const startKaraoke = () => {
                 if(state.playbackId !== pid) return;
                 
-                if(el && audio.duration && isFinite(audio.duration)) {
-                    const wordSpans = el.querySelectorAll('span');
-                    let totalSyllables = 0; const wordWeights = [];
-                    wordSpans.forEach(span => {
-                        const wText = span.innerText; let sCount = countSyllables(wText);
-                        if(wText.length <= 3) sCount *= 0.8;
-                        if(wText[0] === wText[0].toUpperCase()) sCount *= 1.1;
-                        if (wText.includes(',') || wText.includes(';')) sCount += 3;
-                        else if (wText.includes('.') || wText.includes('!') || wText.includes('?')) sCount += 6;
-                        wordWeights.push(sCount); totalSyllables += sCount;
-                    });
-
-                    // FIX: USE RAW DURATION (Browser handles speed scaling for currentTime)
-                    const durationMs = audio.duration * 1000; 
-                    const msPerSyllable = durationMs / totalSyllables;
+                const tick = () => {
+                    if(state.playbackId !== pid || audio.paused) return;
+                    const duration = audio.duration || 1; 
+                    const progress = audio.currentTime / duration;
+                    const bgPos = 100 - (progress * 100);
                     
-                    const timeline = []; let accumulatedTime = 0;
-                    wordSpans.forEach((span, i) => {
-                        const wDur = wordWeights[i] * msPerSyllable;
-                        // Highlight window (Start -> End)
-                        timeline.push({ start: accumulatedTime - 50, end: accumulatedTime + wDur - 50, el: span });
-                        accumulatedTime += wDur;
-                    });
-
-                    const tick = () => {
-                        if(state.playbackId !== pid || audio.paused) return;
-                        // currentTime is sped up by browser, so it matches raw duration map
-                        const currentTime = (audio.currentTime * 1000);
-                        const active = timeline.find(t => currentTime >= t.start && currentTime < t.end);
-                        if(active) {
-                            const currentActive = el.querySelector('.word-active');
-                            if(currentActive !== active.el) { if(currentActive) currentActive.classList.remove('word-active'); active.el.classList.add('word-active'); }
-                        }
-                        state.wordHighlightFrame = requestAnimationFrame(tick);
-                    };
-                    state.wordHighlightFrame = requestAnimationFrame(tick);
-                }
+                    if(el) {
+                        el.style.backgroundPosition = `${bgPos}%`;
+                    }
+                    state.karaokeFrame = requestAnimationFrame(tick);
+                };
+                state.karaokeFrame = requestAnimationFrame(tick);
             };
 
-            if (audio.readyState >= 1) { onAudioStart(); } else { audio.addEventListener('loadedmetadata', onAudioStart, { once: true }); }
+            if (audio.readyState >= 1) startKaraoke();
+            else audio.addEventListener('loadedmetadata', startKaraoke, { once: true });
+
             try { await audio.play(); } catch(e){ console.warn("Play blocked", e); }
-            audio.onended = () => { cancelAnimationFrame(state.wordHighlightFrame); if(state.isPlaying && state.playbackId===pid) playChunk(idx+1); };
+            
+            audio.onended = () => { 
+                cancelAnimationFrame(state.karaokeFrame);
+                if(el) el.style.backgroundPosition = '0%'; // Finish filling
+                if(state.isPlaying && state.playbackId===pid) playChunk(idx+1); 
+            };
+            
             preloadChunk(idx+1); preloadChunk(idx+2);
         }
 
         async function preloadChunk(i) { if(i<state.textChunks.length && !state.audioCache[i] && !state.fallbackMode) { try{const a=await smartFetch(state.textChunks[i]);if(a)state.audioCache[i]=a;}catch(e){} } }
 
-        function stopPlayback() { state.isPlaying=false; state.playbackId++; if(state.currentAudio) state.currentAudio.pause(); cancelAnimationFrame(state.wordHighlightFrame); updateUI(); setLoading(false); }
+        function stopPlayback() { state.isPlaying=false; state.playbackId++; if(state.currentAudio) state.currentAudio.pause(); cancelAnimationFrame(state.karaokeFrame); updateUI(); setLoading(false); }
+
         function togglePlay() { 
             if(state.textChunks.length===0) processText();
             if(state.textChunks.length===0) return toast("No text", "error"); 
