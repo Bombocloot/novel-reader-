@@ -9,14 +9,32 @@
     <meta name="theme-color" content="#000000">
     <title>Gemini Reader</title>
 
-    <!-- APP LOGO / ICONS (iOS & Browser) -->
-    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3144/3144456.png">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3144/3144456.png">
-
-    <!-- PWA Setup -->
+    <!-- Dynamic Icon Setup -->
+    <link rel="icon" id="dynamic-favicon">
+    <link rel="apple-touch-icon" id="dynamic-apple-icon">
     <link rel="manifest" id="manifest-placeholder">
+
     <script>
         try {
+            // 1. GENERATE CUSTOM LOGO (Waves on Black Background)
+            // Matches the header design: Black bg, White waves
+            const svgIcon = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+                <rect width="512" height="512" rx="120" fill="#000000"/>
+                <g transform="translate(64, 64) scale(16)" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>
+                    <path d="M2 12c.6.5 1.2 1 2.5 1C7 13 7 11 9.5 11c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>
+                    <path d="M2 18c.6.5 1.2 1 2.5 1C7 19 7 17 9.5 17c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>
+                </g>
+            </svg>`.trim();
+            
+            const iconUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`;
+
+            // 2. APPLY TO HEADERS
+            document.getElementById('dynamic-favicon').href = iconUrl;
+            document.getElementById('dynamic-apple-icon').href = iconUrl;
+
+            // 3. GENERATE MANIFEST
             const manifest = {
                 "name": "Gemini Reader",
                 "short_name": "GeminiReader",
@@ -26,25 +44,15 @@
                 "theme_color": "#000000",
                 "orientation": "portrait-primary",
                 "icons": [
-                    { 
-                        "src": "https://cdn-icons-png.flaticon.com/512/3144/3144456.png", 
-                        "sizes": "192x192", 
-                        "type": "image/png",
-                        "purpose": "any maskable"
-                    },
-                    { 
-                        "src": "https://cdn-icons-png.flaticon.com/512/3144/3144456.png", 
-                        "sizes": "512x512", 
-                        "type": "image/png",
-                        "purpose": "any maskable" 
-                    }
+                    { "src": iconUrl, "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" },
+                    { "src": iconUrl, "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
                 ]
             };
+            
             const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
             document.querySelector('#manifest-placeholder').setAttribute('href', URL.createObjectURL(blob));
             
             if ('serviceWorker' in navigator) {
-                // Force SW to update and claim clients immediately
                 const swCode = `
                     self.addEventListener('install', (e) => self.skipWaiting());
                     self.addEventListener('activate', (e) => self.clients.claim());
@@ -169,15 +177,9 @@
         
         .sentence-chunk:hover { color: rgba(255,255,255,0.9); }
 
-        /* Active State: Applies the Gradient Magic */
+        /* Active State: Pure White */
         .sentence-chunk.active {
-            /* Gradient: White (Active/Past) -> Dim Gray (Future) */
-            background-image: linear-gradient(to right, #ffffff 50%, rgba(255, 255, 255, 0.3) 50%);
-            background-size: 200% 100%;
-            background-position: 100%; /* Start full gray */
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent; /* Text becomes transparent to show gradient */
+            color: #ffffff !important;
             font-weight: normal;
         }
 
@@ -363,7 +365,7 @@
             apiKey: localStorage.getItem("gemini_key") || "", isPlaying: false, textChunks: [], currentChunkIndex: 0, playbackId: 0, 
             audioCache: {}, settings: { speed: 1.0, pitch: 0, voice: "Joey", preferredProvider: "puter" },
             currentAudio: null, view: 'reader', fallbackMode: false, puterUser: null,
-            library: savedLib, deferredPrompt: null, karaokeFrame: null,
+            library: savedLib, deferredPrompt: null, wordHighlightFrame: null,
             scroll: { current: 0, target: 0, velocity: 0, sleeping: true, manualOverride: false }
         };
         let els = {}; let manualTimeout = null;
@@ -504,7 +506,7 @@
 
         window.loadItem = function(id) { const item = state.library.find(i => i.id === id); if(item && els.mainText) { els.mainText.value = item.text; processText(); window.switchView('reader'); toast("Loaded", "success"); } };
         window.deleteItem = function(id) { state.library = state.library.filter(i => i.id !== id); localStorage.setItem('gemini_library', JSON.stringify(state.library)); renderLibrary(); toast("Deleted", "neutral"); };
-        window.skipTo = function(i) { if(i !== state.currentChunkIndex) { state.playbackId++; state.isPlaying=false; if(state.currentAudio) state.currentAudio.pause(); cancelAnimationFrame(state.karaokeFrame); setTimeout(() => { state.isPlaying=true; playChunk(i); }, 50); } };
+        window.skipTo = function(i) { if(i !== state.currentChunkIndex) { state.playbackId++; state.isPlaying=false; if(state.currentAudio) state.currentAudio.pause(); cancelAnimationFrame(state.wordHighlightFrame); setTimeout(() => { state.isPlaying=true; playChunk(i); }, 50); } };
 
         function renderLibrary() {
             if(!els.libraryList) return;
@@ -626,14 +628,20 @@
 
         async function playChunk(idx) {
             if(idx<0 || idx>=state.textChunks.length) { stopPlayback(); return; }
-            clearHighlights(); cancelAnimationFrame(state.karaokeFrame);
+            
+            clearHighlights();
+            cancelAnimationFrame(state.wordHighlightFrame);
+
             const pid = state.playbackId; state.currentChunkIndex = idx;
             const el = document.getElementById(`chunk-${idx}`); const text = state.textChunks[idx];
             
             if(el && els.readerDisplay) {
                 const parentP = el.closest('div'); // Paragraph div
                 if(parentP) parentP.classList.add('active-context');
-                el.classList.add('active'); // TURNS TEXT WHITE
+                
+                el.classList.add('active'); // Activate visibility
+
+                // Autoscroll
                 ScrollEngine.setTarget(el);
             }
             updateUI(); 
@@ -650,41 +658,58 @@
             
             const audio = state.audioCache[idx]; state.currentAudio = audio; audio.playbackRate = state.settings.speed;
             
-            // --- KARAOKE GRADIENT ANIMATION (WITH SPEED FIX) ---
-            const startKaraoke = () => {
+            // --- FIXED WORD HIGHLIGHT LOGIC (SPEED AGNOSTIC) ---
+            const onAudioStart = () => {
                 if(state.playbackId !== pid) return;
                 
-                const tick = () => {
-                    if(state.playbackId !== pid || audio.paused) return;
-                    const duration = audio.duration || 1; 
-                    const progress = audio.currentTime / duration;
-                    const bgPos = 100 - (progress * 100);
+                if(el && audio.duration && isFinite(audio.duration)) {
+                    const wordSpans = el.querySelectorAll('span');
+                    let totalSyllables = 0; const wordWeights = [];
+                    wordSpans.forEach(span => {
+                        const wText = span.innerText; let sCount = countSyllables(wText);
+                        if(wText.length <= 3) sCount *= 0.8;
+                        if(wText[0] === wText[0].toUpperCase()) sCount *= 1.1;
+                        if (wText.includes(',') || wText.includes(';')) sCount += 3;
+                        else if (wText.includes('.') || wText.includes('!') || wText.includes('?')) sCount += 6;
+                        wordWeights.push(sCount); totalSyllables += sCount;
+                    });
+
+                    // FIX: USE RAW DURATION (Browser handles speed scaling for currentTime)
+                    const durationMs = audio.duration * 1000; 
+                    const msPerSyllable = durationMs / totalSyllables;
                     
-                    if(el) {
-                        el.style.backgroundPosition = `${bgPos}%`;
-                    }
-                    state.karaokeFrame = requestAnimationFrame(tick);
-                };
-                state.karaokeFrame = requestAnimationFrame(tick);
+                    const timeline = []; let accumulatedTime = 0;
+                    wordSpans.forEach((span, i) => {
+                        const wDur = wordWeights[i] * msPerSyllable;
+                        // Highlight window (Start -> End)
+                        timeline.push({ start: accumulatedTime - 50, end: accumulatedTime + wDur - 50, el: span });
+                        accumulatedTime += wDur;
+                    });
+
+                    const tick = () => {
+                        if(state.playbackId !== pid || audio.paused) return;
+                        // currentTime is sped up by browser, so it matches raw duration map
+                        const currentTime = (audio.currentTime * 1000);
+                        const active = timeline.find(t => currentTime >= t.start && currentTime < t.end);
+                        if(active) {
+                            const currentActive = el.querySelector('.word-active');
+                            if(currentActive !== active.el) { if(currentActive) currentActive.classList.remove('word-active'); active.el.classList.add('word-active'); }
+                        }
+                        state.wordHighlightFrame = requestAnimationFrame(tick);
+                    };
+                    state.wordHighlightFrame = requestAnimationFrame(tick);
+                }
             };
 
-            if (audio.readyState >= 1) startKaraoke();
-            else audio.addEventListener('loadedmetadata', startKaraoke, { once: true });
-
+            if (audio.readyState >= 1) { onAudioStart(); } else { audio.addEventListener('loadedmetadata', onAudioStart, { once: true }); }
             try { await audio.play(); } catch(e){ console.warn("Play blocked", e); }
-            
-            audio.onended = () => { 
-                cancelAnimationFrame(state.karaokeFrame);
-                if(el) el.style.backgroundPosition = '0%'; // Finish filling
-                if(state.isPlaying && state.playbackId===pid) playChunk(idx+1); 
-            };
-            
+            audio.onended = () => { cancelAnimationFrame(state.wordHighlightFrame); if(state.isPlaying && state.playbackId===pid) playChunk(idx+1); };
             preloadChunk(idx+1); preloadChunk(idx+2);
         }
 
         async function preloadChunk(i) { if(i<state.textChunks.length && !state.audioCache[i] && !state.fallbackMode) { try{const a=await smartFetch(state.textChunks[i]);if(a)state.audioCache[i]=a;}catch(e){} } }
 
-        function stopPlayback() { state.isPlaying=false; state.playbackId++; if(state.currentAudio) state.currentAudio.pause(); cancelAnimationFrame(state.karaokeFrame); updateUI(); setLoading(false); }
+        function stopPlayback() { state.isPlaying=false; state.playbackId++; if(state.currentAudio) state.currentAudio.pause(); cancelAnimationFrame(state.wordHighlightFrame); updateUI(); setLoading(false); }
 
         function togglePlay() { 
             if(state.textChunks.length===0) processText();
