@@ -17,7 +17,6 @@
     <script>
         try {
             // 1. GENERATE CUSTOM LOGO (Waves on Black Background)
-            // Matches the header design: Black bg, White waves
             const svgIcon = `
             <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
                 <rect width="512" height="512" rx="120" fill="#000000"/>
@@ -29,12 +28,9 @@
             </svg>`.trim();
             
             const iconUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`;
-
-            // 2. APPLY TO HEADERS
             document.getElementById('dynamic-favicon').href = iconUrl;
             document.getElementById('dynamic-apple-icon').href = iconUrl;
 
-            // 3. GENERATE MANIFEST
             const manifest = {
                 "name": "Gemini Reader",
                 "short_name": "GeminiReader",
@@ -117,11 +113,7 @@
             backdrop-filter: blur(24px) saturate(180%);
             -webkit-backdrop-filter: blur(24px) saturate(180%);
             border-radius: 9999px;
-            box-shadow: 
-                0 20px 50px -12px rgba(0, 0, 0, 0.9), 
-                inset 0 1px 0 rgba(255, 255, 255, 0.2), 
-                inset 0 -1px 0 rgba(255, 255, 255, 0.05), 
-                inset 0 0 40px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(255, 255, 255, 0.05), inset 0 0 40px rgba(0, 0, 0, 0.8);
             border: 1px solid rgba(255, 255, 255, 0.1);
             z-index: 50;
             display: flex;
@@ -140,15 +132,49 @@
             font-size: 1.2rem; 
             letter-spacing: 0.03em;
             word-spacing: 0.1em;
-            color: rgba(255, 255, 255, 0.3); 
+            color: rgba(255, 255, 255, 0.4); 
             padding-bottom: 60vh; 
             scroll-behavior: smooth;
             position: relative;
         }
-        #reader-display h1 { font-size: 1.8em; font-weight: 800; color: white; margin-top: 1.5em; margin-bottom: 0.8em; padding: 0 16px; }
-        #reader-display h2 { font-size: 1.4em; font-weight: 700; color: white; margin-top: 1.4em; margin-bottom: 0.6em; padding: 0 16px; }
+        
+        /* FORMATTING STYLES */
+        .block-header { 
+            color: #ffffff; 
+            font-weight: 800; 
+            margin-top: 2em; 
+            margin-bottom: 1em; 
+            padding: 0 16px; 
+            line-height: 1.3;
+        }
+        .block-h1 { font-size: 1.8em; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5em; }
+        .block-h2 { font-size: 1.5em; color: #f0f0f0; }
+        .block-h3 { font-size: 1.25em; color: #e0e0e0; }
+        
+        .block-quote {
+            border-left: 4px solid #A0522D;
+            padding-left: 20px;
+            margin: 1.5em 0;
+            font-style: italic;
+            background: rgba(255,255,255,0.03);
+            border-radius: 0 12px 12px 0;
+        }
 
-        #reader-display p { 
+        .block-list-item {
+            margin-left: 1em;
+            margin-bottom: 0.8em;
+            display: flex;
+            align-items: flex-start;
+        }
+        .list-bullet { 
+            color: #A0522D; 
+            margin-right: 12px; 
+            font-weight: bold; 
+            margin-top: 0.3em;
+            flex-shrink: 0;
+        }
+
+        .paragraph-block { 
             margin-bottom: 2em; 
             padding: 32px 28px; 
             border-radius: 28px; 
@@ -156,44 +182,45 @@
             transition: background-color 0.3s ease;
         }
 
-        #reader-display p.active-context { 
+        .paragraph-block.active-context { 
             background-color: rgba(255, 255, 255, 0.05);
             border-color: rgba(255, 255, 255, 0.1);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
         }
 
-        /* --- FIXED KARAOKE STYLES --- */
         .sentence-chunk { 
             display: inline;
-            transition: opacity 0.3s ease;
+            transition: color 0.2s ease;
             border-radius: 4px; 
             cursor: pointer; 
-            padding: 4px 0;
-            margin-right: 6px;
-            line-height: 2.6; 
-            /* Default State: Visible Dim Gray */
+            padding: 2px 0;
+            margin-right: 4px;
             color: rgba(255, 255, 255, 0.35);
         }
         
         .sentence-chunk:hover { color: rgba(255,255,255,0.9); }
 
-        /* Active State: Pure White */
         .sentence-chunk.active {
             color: #ffffff !important;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.2); 
             font-weight: normal;
+        }
+
+        .word-active { 
+            background-color: #A0522D !important;
+            color: #ffffff !important;
+            border-radius: 3px;
+            box-shadow: 0 0 0 2px #A0522D; 
+            z-index: 10;
+            position: relative;
         }
 
         .player-btn { color: rgba(255,255,255,0.6); transition: all 0.2s; padding: 8px; border-radius: 50%; }
         .player-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
         .player-btn:active { transform: scale(0.95); }
 
-        #play-btn-circle {
-            width: 44px; height: 44px; background: #fff; color: #000;
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 15px rgba(255,255,255,0.1); transition: transform 0.2s;
-        }
+        #play-btn-circle { width: 44px; height: 44px; background: #fff; color: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(255,255,255,0.1); transition: transform 0.2s; }
         #play-btn-circle:active { transform: scale(0.95); }
-
         .loader { border: 2px solid rgba(0,0,0,0.2); border-left-color: #000; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
@@ -385,10 +412,9 @@
         }
 
         // --- 3. SCROLL ENGINE (SMOOTH LERP) ---
-        // Replaced physics spring with simple Lerp for non-bouncy smoothness
         const ScrollEngine = {
             epsilon: 0.5,
-            factor: 0.08, // Lower factor = smoother, slower catch-up
+            factor: 0.08, 
             init() {
                 const container = document.getElementById('reader-display');
                 if(!container) return;
@@ -399,7 +425,6 @@
                         clearTimeout(manualTimeout);
                         manualTimeout = setTimeout(() => {
                             state.scroll.manualOverride = false;
-                            // Reset target to current position to prevent jump
                             state.scroll.target = container.scrollTop;
                             state.scroll.current = container.scrollTop;
                             ScrollEngine.wake();
@@ -416,11 +441,9 @@
                 const elTop = el.offsetTop; 
                 let targetPos;
                 
-                // Center logic
                 if (elHeight < viewHeight) targetPos = elTop - (viewHeight / 2) + (elHeight / 2);
-                else targetPos = elTop - (viewHeight * 0.2); // Top-bias for long text
+                else targetPos = elTop - (viewHeight * 0.2); 
                 
-                // Bounds check
                 const maxScroll = container.scrollHeight - viewHeight;
                 targetPos = Math.max(0, Math.min(targetPos, maxScroll));
                 
@@ -437,14 +460,12 @@
                     return;
                 }
                 
-                // LERP (Linear Interpolation) - No Bounce
                 const diff = state.scroll.target - state.scroll.current;
                 state.scroll.current += diff * this.factor;
 
                 const container = document.getElementById('reader-display');
                 if (container) container.scrollTop = state.scroll.current;
 
-                // Sleep if close enough
                 if (Math.abs(diff) < this.epsilon) {
                     state.scroll.sleeping = true;
                     if(container) container.scrollTop = state.scroll.target;
@@ -534,40 +555,59 @@
             renderLibrary();
         }
 
-        // --- MARKDOWN-AWARE PROCESSOR ---
+        // --- MARKDOWN & STRUCTURE AWARE PROCESSOR ---
         function processText() {
-            if (!els.mainText) return; const raw = els.mainText.value.trim(); if(!raw) return;
-            saveToLibrary(raw); cleanupAudio();
-            state.textChunks = []; els.readerDisplay.innerHTML = ''; const frag = document.createDocumentFragment();
+            if (!els.mainText) return; 
+            const raw = els.mainText.value.trim(); 
+            if(!raw) return;
+            
+            saveToLibrary(raw); 
+            cleanupAudio();
+            state.textChunks = []; 
+            els.readerDisplay.innerHTML = ''; 
+            const frag = document.createDocumentFragment();
             let chunkCounter = 0; 
 
-            // 1. Split paragraphs
-            const paragraphs = raw.split(/\n\n+/);
+            // 1. Split into visual blocks (paragraphs)
+            const blocks = raw.split(/\n\n+/);
 
-            paragraphs.forEach(para => {
-                const p = document.createElement('div');
-                p.className = 'paragraph-block';
-                
-                // MARKDOWN DETECTION
-                if (para.startsWith('#')) {
-                    if(para.startsWith('# ')) p.className += ' block-header block-h1';
-                    else if(para.startsWith('## ')) p.className += ' block-header block-h2';
-                    else p.className += ' block-header block-h3';
-                    para = para.replace(/^#+\s*/, '');
-                } else if (para.startsWith('> ')) {
-                    p.className += ' block-quote';
-                    para = para.replace(/^> \s*/, '');
-                } else if (para.match(/^[-*] /)) {
-                    p.className += ' block-list-item';
+            blocks.forEach(block => {
+                let cssClass = 'paragraph-block';
+                let content = block;
+                let isList = false;
+
+                // Simple Structure Detection
+                if (block.match(/^#+\s/)) {
+                    const level = block.match(/^#+/)[0].length;
+                    cssClass = `block-header block-h${Math.min(level, 3)}`;
+                    content = block.replace(/^#+\s*/, '');
+                } else if (block.match(/^>\s/)) {
+                    cssClass = 'block-quote';
+                    content = block.replace(/^>\s*/, '');
+                } else if (block.match(/^[-*]\s/)) {
+                    cssClass = 'block-list-item';
+                    isList = true;
+                    // Note: If multiple lines in one block start with -, we handle them as one block here for audio continuity,
+                    // but ideally lists are split by newlines. The split(/\n\n+/) handles grouped lists.
+                    // For single item:
+                    content = block.replace(/^[-*]\s*/, '');
+                }
+
+                // Create container
+                const container = document.createElement('div');
+                container.className = cssClass;
+
+                // Add bullet if list
+                if(isList) {
                     const bullet = document.createElement('span');
                     bullet.className = 'list-bullet';
                     bullet.textContent = '•';
-                    p.appendChild(bullet);
-                    para = para.replace(/^[-*] \s*/, '');
+                    container.appendChild(bullet);
                 }
 
-                // 2. Split sentence content
-                const sentences = para.match(/[^.!?;\n]+[.!?;\n]+["']?|[^.!?;\n]+$/g) || [para];
+                // 2. Split content into sentences for audio chunks
+                // This regex splits by punctuation but keeps the punctuation attached to the sentence
+                const sentences = content.match(/[^.!?;\n]+[.!?;\n]+["']?|[^.!?;\n]+$/g) || [content];
 
                 sentences.forEach(sentence => {
                     const trimmedS = sentence.trim();
@@ -585,13 +625,16 @@
                         const c = chunkCounter;
                         span.onclick = (e) => { e.stopPropagation(); window.skipTo(c); };
                         
-                        p.appendChild(span);
+                        container.appendChild(span);
                         chunkCounter++;
                     }
                 });
-                frag.appendChild(p);
+                frag.appendChild(container);
             });
-            els.readerDisplay.appendChild(frag); state.currentChunkIndex = 0; if(state.textChunks.length > 0) setReaderMode(true); updateUI();
+            els.readerDisplay.appendChild(frag); 
+            state.currentChunkIndex = 0; 
+            if(state.textChunks.length > 0) setReaderMode(true); 
+            updateUI();
         }
 
         async function fetchGeminiTTS(text) {
@@ -622,7 +665,7 @@
 
         function clearHighlights() {
             document.querySelectorAll('.sentence-chunk.active').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.paragraph-block.active-context').forEach(el => el.classList.remove('active-context'));
+            document.querySelectorAll('div.active-context').forEach(el => el.classList.remove('active-context'));
             document.querySelectorAll('.word-active').forEach(el => el.classList.remove('word-active'));
         }
 
@@ -636,10 +679,10 @@
             const el = document.getElementById(`chunk-${idx}`); const text = state.textChunks[idx];
             
             if(el && els.readerDisplay) {
-                const parentP = el.closest('div'); // Paragraph div
-                if(parentP) parentP.classList.add('active-context');
+                const parentDiv = el.closest('div'); 
+                if(parentDiv) parentDiv.classList.add('active-context');
                 
-                el.classList.add('active'); // Activate visibility
+                el.classList.add('active'); // Turns White
 
                 // Autoscroll
                 ScrollEngine.setTarget(el);
